@@ -1,0 +1,12 @@
+{
+    "sectionTitles": {
+        "latestPosts": "Posts Recentes",
+        "popularTab": "Popular",
+        "recentTab": "Recente"
+    },
+    "latestPosts": {
+        "limit": 6,
+        "btnText": "Ver Todos os Posts",
+        "btnLink": "/blog"
+    }
+}

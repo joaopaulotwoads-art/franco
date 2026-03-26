@@ -1,0 +1,33 @@
+{
+  "name": "Meu Blog",
+  "description": "Um blog criado com cms-core — substitua este texto pela descrição do seu site.",
+  "url": "https://meublog.com.br",
+  "author": "Autor",
+  "language": "pt-BR",
+  "logo": "",
+  "theme": {
+    "primary": "#3B82F6",
+    "accent": "#6366F1",
+    "font": "poppins",
+    "dark": "#1E293B"
+  },
+  "social": {
+    "instagram": "",
+    "twitter": "",
+    "facebook": "",
+    "pinterest": "",
+    "youtube": ""
+  },
+  "contact": {
+    "email": "",
+    "phone": "",
+    "address": "",
+    "name": ""
+  },
+  "legal": {
+    "terms_last_updated": "",
+    "privacy_last_updated": ""
+  },
+  "phone": "",
+  "address": ""
+}

@@ -1,0 +1,85 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Sidebar from '../../components/Sidebar.astro';
+import { readData } from '../../lib/readData';
+import { getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  const categoriesData = readData('categories.json', []);
+  const posts = await getCollection('blog');
+  const finalCategoriesData = Array.isArray(categoriesData) ? categoriesData : [];
+  const categoriesFromPosts = [...new Set(posts.map(p => p.data.category).filter(Boolean))];
+  const allCategories = finalCategoriesData.length > 0 ? finalCategoriesData : categoriesFromPosts;
+
+  return allCategories.map(cat => ({
+    params: { categoria: cat.toLowerCase().replace(/[^a-z0-9]/g, '-') },
+    props: { categoryName: cat },
+  }));
+}
+
+const { categoryName } = Astro.props;
+const allPosts = (await getCollection('blog')).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+const posts = allPosts.filter(p =>
+  (p.data.category || '').toLowerCase() === categoryName.toLowerCase()
+);
+const categorySlug = categoryName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+---
+
+<BaseLayout title={categoryName} description={`Artigos sobre ${categoryName}`}>
+
+  <section class="max-w-6xl mx-auto px-4 py-10">
+    <div class="mb-6">
+      <h1 class="text-3xl font-bold" style="font-family: var(--font-heading);">{categoryName}</h1>
+      <nav class="text-sm text-gray-500 mt-1">
+        <a href="/" class="hover:text-gray-700">Home</a>
+        <span class="mx-2">/</span>
+        <span>{categoryName}</span>
+      </nav>
+    </div>
+
+    <div class="flex flex-col lg:flex-row gap-8">
+      <!-- Posts grid -->
+      <div class="flex-1 min-w-0">
+        {posts.length === 0 && (
+          <div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500">
+            Nenhum artigo nesta categoria ainda.
+          </div>
+        )}
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {posts.map(post => (
+            <article class="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+              <a href={`/blog/${post.slug}`} class="block relative">
+                {post.data.heroImage ? (
+                  <img src={post.data.heroImage} alt={post.data.title} class="w-full h-48 object-cover" />
+                ) : (
+                  <div class="w-full h-48 bg-gray-100"></div>
+                )}
+                <span class="category-badge absolute top-3 left-3">{categoryName}</span>
+              </a>
+              <div class="p-5">
+                <p class="text-xs text-gray-400 mb-2">
+                  {post.data.pubDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                </p>
+                <h2 class="text-base font-bold mb-2 leading-snug" style="font-family: var(--font-heading);">
+                  <a href={`/blog/${post.slug}`} class="text-gray-900 hover:text-[--color-primary] transition-colors">{post.data.title}</a>
+                </h2>
+                {post.data.description && (
+                  <p class="text-sm text-gray-500 line-clamp-3">{post.data.description}</p>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <aside class="lg:w-80 flex-shrink-0">
+        <Sidebar />
+      </aside>
+    </div>
+  </section>
+
+</BaseLayout>
