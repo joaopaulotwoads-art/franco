@@ -1,7 +1,8 @@
 {
-  "version": "1.0.1",
-  "note": "Corrige erro no WP Importer em produção (EROFS sem credenciais GitHub) e evita posts duplicados em imports repetidos.",
+  "version": "1.0.2",
+  "note": "Corrige updater (TEMPLATE_REPO estava vazio), WP Importer em produção e duplicatas em imports repetidos.",
   "files": [
+    "src/lib/templateConfig.ts",
     "src/plugins/wp-importer/wordpress-importer.ts",
     "src/plugins/_server.ts"
   ]
