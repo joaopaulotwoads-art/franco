@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Plus, Search, Loader2, Trash2, Edit3, AlertCircle, Save, ChevronUp, ChevronDown, Check, X } from 'lucide-react';
 import { triggerToast } from './CmsToaster';
 import { githubApi } from '../../lib/adminApi';
+import { normalizePostSlug, isValidPostSlug } from '../../lib/postSlug';
 
 export default function PostsManager() {
     const [posts, setPosts] = useState<any[]>([]);
@@ -93,17 +94,21 @@ export default function PostsManager() {
     };
 
     const saveQuickEdit = async () => {
-        if (!quickEditData.title || !quickEditData.slug) return alert('Título e Slug não podem ser vazios.');
+        if (!quickEditData.title || !String(quickEditData.slug).trim()) return alert('Título e Slug não podem ser vazios.');
+        const slug = normalizePostSlug(quickEditData.slug);
+        if (!isValidPostSlug(slug)) {
+            return alert('Slug inválido: use de 3 a 120 caracteres, só letras minúsculas, números e hífens.');
+        }
         setSaving(true);
         try {
-            const targetPath = `src/content/blog/${quickEditData.slug}.md`;
+            const targetPath = `src/content/blog/${slug}.md`;
             const markdown = `---\ntitle: "${quickEditData.title.replace(/"/g, '\\"')}"\ndescription: "${(quickEditData.description || '').replace(/"/g, '\\"')}"\npubDate: "${quickEditData.pubDate}"\nheroImage: "${quickEditData.heroImage || ''}"\ncategory: "${quickEditData.category}"\nauthor: "${quickEditData.author}"\ndraft: ${quickEditData.draft}\n---\n${quickEditData.rawBody}`;
 
-            if (quickEditData.slug !== quickEditData._oldSlug) {
-                await githubApi('write', targetPath, { content: markdown, message: `CMS: Renomeando ${quickEditData.slug}` });
+            if (slug !== quickEditData._oldSlug) {
+                await githubApi('write', targetPath, { content: markdown, message: `CMS: Renomeando ${slug}` });
                 await githubApi('delete', quickEditData._oldPath, { sha: quickEditData._sha, message: 'CMS: Apagando slug antigo' });
             } else {
-                await githubApi('write', targetPath, { content: markdown, sha: quickEditData._sha, message: `CMS: Edição Rápida ${quickEditData.slug}` });
+                await githubApi('write', targetPath, { content: markdown, sha: quickEditData._sha, message: `CMS: Edição Rápida ${slug}` });
             }
             triggerToast('Artigo atualizado com sucesso!', 'success');
             setEditingSha(null);
@@ -245,7 +250,7 @@ export default function PostsManager() {
                                                         </div>
                                                         <div>
                                                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Slug (URL)</label>
-                                                            <input type="text" value={quickEditData.slug} onChange={e => setQuickEditData({ ...quickEditData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-violet-500" />
+                                                            <input type="text" value={quickEditData.slug} onChange={e => setQuickEditData({ ...quickEditData, slug: normalizePostSlug(e.target.value) })} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-violet-500" />
                                                         </div>
                                                         <div>
                                                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Data</label>

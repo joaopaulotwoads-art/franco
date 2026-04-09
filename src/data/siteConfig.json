@@ -1,15 +1,15 @@
 {
-  "name": "Meu Blog",
+  "name": "Soberania Quântica",
   "description": "Um blog criado com cms-core — substitua este texto pela descrição do seu site.",
   "url": "https://meublog.com.br",
   "author": "Autor",
   "language": "pt-BR",
   "logo": "",
   "theme": {
-    "primary": "#3B82F6",
-    "accent": "#6366F1",
+    "primary": "#FE4F70",
+    "accent": "#FFA387",
     "font": "poppins",
-    "dark": "#1E293B"
+    "dark": "#203656"
   },
   "social": {
     "instagram": "",

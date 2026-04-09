@@ -1,5 +1,6 @@
 ---
 import { readData } from '../lib/readData';
+import { blogIndexUrl } from '../lib/blogRoutes';
 import { getCollection } from 'astro:content';
 import HeadPlugins from '../plugins/_slots/HeadPlugins.astro';
 import BodyEndPlugins from '../plugins/_slots/BodyEndPlugins.astro';
@@ -75,9 +76,9 @@ const socialImage = image?.startsWith('http') ? image : image ? new URL(image, s
   {socialImage && <meta property="og:image" content={socialImage} />}
   <meta property="og:url" content={Astro.url} />
 
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
+  <!-- Tailwind CDN: is:inline obrigatório — senão o Astro embala o script e o utilitário global não corre -->
+  <script is:inline src="https://cdn.tailwindcss.com"></script>
+  <script is:inline>
     tailwind.config = {
       theme: {
         extend: {
@@ -114,7 +115,67 @@ const socialImage = image?.startsWith('http') ? image : image ? new URL(image, s
     .btn-primary { background-color: var(--color-primary); color: #fff; padding: 0.5rem 1.25rem; border-radius: 0.375rem; font-weight: 600; display: inline-block; }
     .btn-primary:hover { opacity: 0.9; }
     .category-badge { background-color: var(--color-primary); color: #fff; font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; }
-    .post-content h1,.post-content h2,.post-content h3,.post-content h4 { font-family: var(--font-heading); font-weight: 700; margin: 1.5rem 0 0.75rem; }
+    /* Hierarquia explícita no corpo do artigo (alinha com escala tipo Tailwind) */
+    .post-content h1 {
+      font-family: var(--font-heading);
+      font-size: 1.875rem;
+      line-height: 1.2;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 2rem 0 0.75rem;
+      color: var(--color-dark);
+    }
+    .post-content h2 {
+      font-family: var(--font-heading);
+      font-size: 1.5rem;
+      line-height: 1.3;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      margin: 2rem 0 0.625rem;
+      color: var(--color-dark);
+    }
+    .post-content h3 {
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      line-height: 1.35;
+      font-weight: 700;
+      margin: 1.75rem 0 0.5rem;
+      color: var(--color-dark);
+    }
+    .post-content h4 {
+      font-family: var(--font-heading);
+      font-size: 1.125rem;
+      line-height: 1.4;
+      font-weight: 700;
+      margin: 1.5rem 0 0.5rem;
+      color: var(--color-dark);
+    }
+    .post-content h5 {
+      font-family: var(--font-heading);
+      font-size: 1rem;
+      line-height: 1.45;
+      font-weight: 600;
+      margin: 1.25rem 0 0.375rem;
+      color: var(--color-dark);
+    }
+    .post-content h6 {
+      font-family: var(--font-heading);
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin: 1.25rem 0 0.375rem;
+      color: #64748b;
+    }
+    .post-content > h1:first-child,
+    .post-content > h2:first-child,
+    .post-content > h3:first-child,
+    .post-content > h4:first-child,
+    .post-content > h5:first-child,
+    .post-content > h6:first-child {
+      margin-top: 0;
+    }
     .post-content p { margin-bottom: 1rem; line-height: 1.8; }
     .post-content ul,.post-content ol { margin-bottom: 1rem; padding-left: 1.5rem; }
     .post-content li { margin-bottom: 0.25rem; }
@@ -161,7 +222,7 @@ const socialImage = image?.startsWith('http') ? image : image ? new URL(image, s
         )) : (
           <>
             <a href="/" class="text-sm font-medium text-gray-700 hover:text-[--color-primary] transition-colors">Home</a>
-            <a href="/blog" class="text-sm font-medium text-gray-700 hover:text-[--color-primary] transition-colors">Blog</a>
+            <a href={blogIndexUrl()} class="text-sm font-medium text-gray-700 hover:text-[--color-primary] transition-colors">Blog</a>
             <a href="/sobre" class="text-sm font-medium text-gray-700 hover:text-[--color-primary] transition-colors">Sobre</a>
             <a href="/contato" class="text-sm font-medium text-gray-700 hover:text-[--color-primary] transition-colors">Contato</a>
           </>
@@ -197,7 +258,7 @@ const socialImage = image?.startsWith('http') ? image : image ? new URL(image, s
         )) : (
           <>
             <a href="/" class="text-sm font-medium text-gray-700 py-1">Home</a>
-            <a href="/blog" class="text-sm font-medium text-gray-700 py-1">Blog</a>
+            <a href={blogIndexUrl()} class="text-sm font-medium text-gray-700 py-1">Blog</a>
             <a href="/sobre" class="text-sm font-medium text-gray-700 py-1">Sobre</a>
             <a href="/contato" class="text-sm font-medium text-gray-700 py-1">Contato</a>
           </>

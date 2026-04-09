@@ -158,7 +158,7 @@ export default function RedirectsManager() {
                   value={form.to}
                   onChange={e => setForm(f => ({ ...f, to: e.target.value }))}
                   className={inputClass}
-                  placeholder="/blog/artigo-novo ou https://..."
+                  placeholder="/url-antiga ou https://..."
                 />
               </div>
             </div>

@@ -2,57 +2,51 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Sidebar from '../components/Sidebar.astro';
 import { readData } from '../lib/readData';
-const siteConfig = readData('siteConfig.json');
 const termsData = readData('terms.json');
 ---
 
-<BaseLayout title={termsData.title} description={`Leia nossos ${termsData.title.toLowerCase()} e condições de uso.`}>
+<BaseLayout
+  title={termsData.title}
+  description={`Leia nossos ${termsData.title.toLowerCase()} e condições de uso.`}
+>
 
-  <!-- page header -->
-  <section class="page-header">
-    <div class="container-xl">
-      <div class="text-center">
-        <h1 class="mt-0 mb-2">{termsData.title}</h1>
-        <nav aria-label="breadcrumb">
-          <ol class="breadcrumb justify-content-center mb-0">
-            <li class="breadcrumb-item"><a href="/">Home</a></li>
-            <li class="breadcrumb-item active" aria-current="page">{termsData.title}</li>
-          </ol>
-        </nav>
-      </div>
+  <section class="max-w-6xl mx-auto px-4 py-10">
+    <div class="mb-6">
+      <h1 class="text-3xl font-bold" style="font-family: var(--font-heading);">{termsData.title}</h1>
+      <nav class="text-sm text-gray-500 mt-1" aria-label="breadcrumb">
+        <a href="/" class="hover:text-gray-700">Home</a>
+        <span class="mx-2">/</span>
+        <span class="text-gray-700">{termsData.title}</span>
+      </nav>
     </div>
-  </section>
 
-  <!-- section main content -->
-  <section class="main-content">
-    <div class="container-xl">
-      <div class="row gy-4">
+    <div class="flex flex-col lg:flex-row gap-8">
+      <div class="flex-1 min-w-0">
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
 
-        <div class="col-lg-8">
-          <div class="page-content bordered rounded padding-30">
+          {termsData.lastUpdated && (
+            <p class="mb-6 text-sm text-gray-500">Última atualização: {termsData.lastUpdated}</p>
+          )}
 
-            {termsData.lastUpdated && (
-              <p class="mb-4" style="color:#8F9BAD;font-size:0.9rem;">Última atualização: {termsData.lastUpdated}</p>
-            )}
-
-            {termsData.content?.map(section => (
-              <>
-                <h4>{section.title}</h4>
-                <p>{section.text}</p>
-              </>
+          <div class="space-y-6 text-gray-700 leading-relaxed">
+            {termsData.content?.map((section: { title: string; text: string }) => (
+              <div>
+                <h2 class="text-lg font-bold mb-2 text-gray-900" style="font-family: var(--font-heading);">{section.title}</h2>
+                <p class="text-gray-700">{section.text}</p>
+              </div>
             ))}
-
-            <hr class="my-4" />
-            <p>Para dúvidas sobre estes termos, entre em <a href="/contato">contato conosco</a>.</p>
-
           </div>
-        </div>
 
-        <div class="col-lg-4">
-          <Sidebar />
+          <hr class="my-8 border-gray-200" />
+          <p class="text-gray-700">
+            Para dúvidas sobre estes termos, entre em <a href="/contato" class="text-[--color-primary] font-medium hover:underline">contato conosco</a>.
+          </p>
         </div>
-
       </div>
+
+      <aside class="lg:w-80 flex-shrink-0">
+        <Sidebar />
+      </aside>
     </div>
   </section>
 

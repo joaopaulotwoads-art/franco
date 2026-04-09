@@ -8,6 +8,8 @@
  * Shortcodes suportados:
  *   [affiliate:slug]                — ProductBox completo
  *   [affiliate-compare:slug1,slug2] — cards comparativos lado a lado
+ *   [affiliate_table ids="a,b,c" badges="x||y"] — tabela comparativa (3–5 produtos; badges opcional, por |)
+ *   [affiliate_comparison ids="a,b,c" data="..."] — Top Comparação (3 cards; data JSON em base64url)
  */
 import { readData } from '../../lib/readData';
 
@@ -162,53 +164,120 @@ const activeProducts = products.filter((p: any) => p.enabled !== false);
       padding: 0;
     }
     .aff-cta-wrap {
-      padding: 1.25rem 1.5rem;
+      padding: 1rem 1.25rem;
       border-top: 1px solid #f1f5f9;
       margin-top: 1rem;
       display: flex;
-      flex-wrap: wrap;
-      gap: 0.625rem;
+      flex-direction: column;
+      flex-wrap: nowrap;
+      gap: 0.4rem;
       align-items: center;
       justify-content: center;
     }
     .aff-cta {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
+      justify-content: center;
+      gap: 0.35rem;
       background: #FF9900;
       color: #fff !important;
       font-weight: 700;
-      font-size: 0.95rem;
-      padding: 0.75rem 2rem;
-      border-radius: 0.625rem;
+      font-size: 0.875rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: 0.5rem;
       text-decoration: none !important;
       transition: opacity 0.2s, transform 0.1s;
       border: none;
       cursor: pointer;
+      width: auto;
+      max-width: 250px;
+      min-width: 0;
+      box-sizing: border-box;
     }
     .aff-cta:hover {
       opacity: 0.9;
       transform: translateY(-1px);
     }
+    .aff-aff-extra-wrap {
+      display: contents;
+    }
     .aff-cta-secondary {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
+      justify-content: center;
+      gap: 0.35rem;
       background: #fff;
       color: #374151 !important;
       font-weight: 600;
-      font-size: 0.875rem;
-      padding: 0.65rem 1.25rem;
-      border-radius: 0.625rem;
+      font-size: 0.8125rem;
+      padding: 0.45rem 0.85rem;
+      border-radius: 0.5rem;
       text-decoration: none !important;
-      transition: background 0.2s, border-color 0.2s, transform 0.1s;
+      transition: background 0.2s, border-color 0.2s, transform 0.1s, opacity 0.2s;
       border: 1.5px solid #e2e8f0;
       cursor: pointer;
+      width: auto;
+      max-width: 250px;
+      min-width: 0;
+      box-sizing: border-box;
     }
     .aff-cta-secondary:hover {
       background: #f8fafc;
       border-color: #cbd5e1;
       transform: translateY(-1px);
+    }
+    .aff-store-ml {
+      background: linear-gradient(180deg, #fff159 0%, #ffe600 100%) !important;
+      color: #1a1a1a !important;
+      border-color: #e6d700 !important;
+    }
+    .aff-store-ml:hover {
+      background: linear-gradient(180deg, #fff7a3 0%, #ffec4d 100%) !important;
+    }
+    .aff-store-magalu {
+      background: linear-gradient(135deg, #0087ff 0%, #e91e8c 100%) !important;
+      color: #fff !important;
+      border: none !important;
+    }
+    .aff-store-magalu:hover {
+      opacity: 0.95;
+    }
+    .aff-store-shopee {
+      background: #ee4d2d !important;
+      color: #fff !important;
+      border-color: #d7321f !important;
+    }
+    .aff-store-shopee:hover {
+      background: #f05b3e !important;
+    }
+    .aff-store-generic {
+      /* base .aff-cta-secondary */
+    }
+    @media (min-width: 640px) {
+      .aff-cta-wrap {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem;
+      }
+    }
+    .aff-compare-cta-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      width: 100%;
+      margin-top: auto;
+    }
+    .aff-td-cta-inner {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      align-items: stretch;
+      min-width: 7rem;
+    }
+    .aff-td-cta-stack {
+      vertical-align: top;
     }
     .aff-disclaimer {
       font-size: 0.75rem;
@@ -281,6 +350,157 @@ const activeProducts = products.filter((p: any) => p.enabled !== false);
       opacity: 0.9;
     }
 
+    /* Top comparison — 3 vertical cards */
+    .aff-top-wrap {
+      margin: 2rem 0;
+      width: 100%;
+    }
+    .aff-top-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+      align-items: stretch;
+    }
+    .aff-top-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 1rem;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+      padding: 1.25rem 1rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      text-align: center;
+    }
+    .aff-top-badge {
+      display: inline-block;
+      align-self: center;
+      font-size: 0.65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #6d28d9;
+      background: #f5f3ff;
+      border-radius: 9999px;
+      padding: 0.35rem 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .aff-top-img-wrap {
+      margin: 0 auto 1rem;
+      width: 140px;
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .aff-top-img-wrap img {
+      max-width: 100%;
+      max-height: 140px;
+      object-fit: contain;
+    }
+    .aff-top-title {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 0.35rem;
+      line-height: 1.3;
+    }
+    .aff-top-sub {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin: 0 0 0.75rem;
+      line-height: 1.4;
+      min-height: 0;
+    }
+    .aff-top-price {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #c2410c;
+      margin-bottom: 0.75rem;
+    }
+    .aff-top-price del {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #94a3b8;
+      margin-top: 0.2rem;
+    }
+    .aff-top-specs {
+      list-style: none;
+      margin: 0 0 1.25rem;
+      padding: 0;
+      text-align: left;
+      flex: 1;
+    }
+    .aff-top-specs li {
+      font-size: 0.8rem;
+      color: #334155;
+      padding: 0.35rem 0 0.35rem 1.5rem;
+      position: relative;
+      line-height: 1.45;
+    }
+    .aff-top-specs li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: #16a34a;
+      font-weight: 800;
+    }
+    .aff-top-cta {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      text-align: center;
+      padding: 0.7rem 1rem;
+      border-radius: 0.65rem;
+      font-weight: 800;
+      font-size: 0.85rem;
+      text-decoration: none !important;
+      color: #fff !important;
+      margin-top: auto;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .aff-top-cta:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+    .aff-top-cta.c1 {
+      background: linear-gradient(135deg, #ea580c, #f97316);
+    }
+    .aff-top-cta.c2 {
+      background: linear-gradient(135deg, #16a34a, #059669);
+    }
+    .aff-top-cta.c3 {
+      background: linear-gradient(135deg, #7c3aed, #6366f1);
+    }
+    .aff-top-card .aff-aff-extra-wrap {
+      margin-top: 0.5rem;
+      width: 100%;
+    }
+    .aff-td-cta-inner .aff-table-cta {
+      width: 100%;
+      box-sizing: border-box;
+      text-align: center;
+    }
+    .aff-compare-body .aff-aff-extra-wrap .aff-cta-secondary {
+      font-size: 0.8rem;
+      padding: 0.55rem 1rem;
+    }
+    @media (max-width: 899px) {
+      .aff-top-grid {
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        gap: 1rem;
+        margin: 0 -0.5rem;
+        padding: 0.25rem 0.75rem 1rem;
+        -webkit-overflow-scrolling: touch;
+      }
+      .aff-top-card {
+        flex: 0 0 min(88vw, 300px);
+        scroll-snap-align: start;
+      }
+    }
+
     /* Post disclaimer banner */
     .aff-post-disclaimer {
       background: #fffbeb;
@@ -297,6 +517,185 @@ const activeProducts = products.filter((p: any) => p.enabled !== false);
     .aff-post-disclaimer svg {
       flex-shrink: 0;
       margin-top: 1px;
+    }
+
+    /* Comparison table */
+    .aff-table-wrap {
+      margin: 2rem 0;
+      width: 100%;
+      border-radius: 1rem;
+      border: 1.5px solid #e2e8f0;
+      background: #f8fafc;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .aff-table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .aff-table {
+      width: 100%;
+      min-width: 560px;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      background: #fff;
+    }
+    .aff-table thead {
+      background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+    }
+    .aff-table th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #64748b;
+      border-bottom: 1.5px solid #e2e8f0;
+    }
+    .aff-table td {
+      padding: 1rem;
+      vertical-align: middle;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .aff-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .aff-table tbody tr:hover {
+      background: #fafbfc;
+    }
+    .aff-td-img {
+      width: 96px;
+    }
+    .aff-td-img-inner {
+      position: relative;
+      width: 88px;
+    }
+    .aff-td-img-inner img {
+      width: 88px;
+      height: 88px;
+      object-fit: contain;
+      border-radius: 0.5rem;
+      background: #f8fafc;
+    }
+    .aff-row-badge {
+      display: inline-block;
+      margin-top: 0.35rem;
+      font-size: 0.62rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.35rem;
+      background: #ecfdf5;
+      color: #047857;
+      max-width: 100%;
+    }
+    .aff-td-title {
+      font-weight: 700;
+      color: #1e293b;
+      line-height: 1.35;
+      max-width: 220px;
+    }
+    .aff-td-stars {
+      color: #f59e0b;
+      white-space: nowrap;
+    }
+    .aff-td-stars span.num {
+      color: #64748b;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-left: 0.35rem;
+    }
+    .aff-td-price {
+      font-weight: 800;
+      color: #b45309;
+      font-size: 1.05rem;
+    }
+    .aff-td-price del {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #94a3b8;
+      margin-top: 0.15rem;
+    }
+    .aff-table-cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 8.5rem;
+      padding: 0.65rem 1rem;
+      border-radius: 0.625rem;
+      font-weight: 800;
+      font-size: 0.82rem;
+      text-decoration: none !important;
+      color: #fff !important;
+      background: linear-gradient(135deg, #ea580c, #f97316);
+      box-shadow: 0 2px 8px rgba(234, 88, 12, 0.35);
+      transition: transform 0.1s, opacity 0.2s;
+      border: none;
+      white-space: nowrap;
+    }
+    .aff-table-cta:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+    .aff-table-cta.alt-green {
+      background: linear-gradient(135deg, #16a34a, #059669);
+      box-shadow: 0 2px 8px rgba(22, 163, 74, 0.35);
+    }
+    .aff-table-cards {
+      display: none;
+    }
+    @media (max-width: 700px) {
+      .aff-table-scroll {
+        display: none;
+      }
+      .aff-table-cards {
+        display: block;
+        padding: 0.75rem;
+        background: #f8fafc;
+      }
+      .aff-table-card {
+        background: #fff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 0.875rem;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      }
+      .aff-table-card:last-child {
+        margin-bottom: 0;
+      }
+      .aff-table-card-top {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+      }
+      .aff-table-card img {
+        width: 80px;
+        height: 80px;
+        object-fit: contain;
+        border-radius: 0.5rem;
+        background: #f8fafc;
+        flex-shrink: 0;
+      }
+      .aff-table-card h4 {
+        margin: 0 0 0.35rem;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1.3;
+      }
+      .aff-table-card-meta {
+        font-size: 0.85rem;
+        color: #64748b;
+        margin-bottom: 0.75rem;
+      }
+      .aff-table-card .aff-table-cta {
+        width: 100%;
+        box-sizing: border-box;
+      }
     }
 
     @media (max-width: 600px) {
@@ -355,6 +754,56 @@ const activeProducts = products.filter((p: any) => p.enabled !== false);
         const sep = url.includes('?') ? '&' : '?';
         return `${url}${sep}tag=${amazonTag}`;
       }
+    }
+
+    function decodeAffiliateLinksParam(b64: string | undefined) {
+      if (!b64 || !String(b64).trim()) return null;
+      try {
+        const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+        const normalized = String(b64).replace(/-/g, '+').replace(/_/g, '/') + pad;
+        const raw = atob(normalized);
+        const bytes = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+        const json = new TextDecoder().decode(bytes);
+        const arr = JSON.parse(json);
+        return Array.isArray(arr) ? arr : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function mergeProductWithInlineLinks(p: any, linksB64: string | undefined) {
+      if (!p || !linksB64) return p;
+      const parsed = decodeAffiliateLinksParam(linksB64);
+      if (!parsed || !parsed.length) return p;
+      const cleaned = parsed.filter((l: any) => l && l.label && l.url);
+      if (!cleaned.length) return p;
+      return { ...p, extraLinks: cleaned };
+    }
+
+    function storeClassForLabel(label: string) {
+      const l = (label || '').toLowerCase();
+      if (l.includes('mercado') || l.includes('meli')) return 'aff-store-ml';
+      if (l.includes('magalu') || l.includes('magazine')) return 'aff-store-magalu';
+      if (l.includes('shopee')) return 'aff-store-shopee';
+      return 'aff-store-generic';
+    }
+
+    function appendAffiliateExtraLinks(container: HTMLElement, p: any) {
+      if (!p.extraLinks || !p.extraLinks.length) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'aff-aff-extra-wrap';
+      p.extraLinks.forEach((link: { label: string; url: string }) => {
+        if (!link.label || !link.url) return;
+        const a = document.createElement('a');
+        a.className = 'aff-cta-secondary ' + storeClassForLabel(link.label);
+        a.href = link.url;
+        a.target = '_blank';
+        a.rel = 'nofollow noopener sponsored';
+        a.textContent = link.label + ' →';
+        wrap.appendChild(a);
+      });
+      if (wrap.children.length) container.appendChild(wrap);
     }
 
     function renderStars(rating: number): string {
@@ -488,22 +937,281 @@ const activeProducts = products.filter((p: any) => p.enabled !== false);
       cta.style.background = buttonColor;
       cta.textContent = (p.buttonText || defaultButtonText) + ' →';
       ctaWrap.appendChild(cta);
-
-      if (p.extraLinks && p.extraLinks.length > 0) {
-        p.extraLinks.forEach((link: { label: string; url: string }) => {
-          if (!link.label || !link.url) return;
-          const sec = document.createElement('a');
-          sec.className = 'aff-cta-secondary';
-          sec.href = link.url;
-          sec.target = '_blank';
-          sec.rel = 'nofollow noopener sponsored';
-          sec.textContent = link.label + ' →';
-          ctaWrap.appendChild(sec);
-        });
-      }
+      appendAffiliateExtraLinks(ctaWrap, p);
 
       wrap.appendChild(ctaWrap);
 
+      return wrap;
+    }
+
+    function parseTableBadges(raw: string | undefined, n: number): string[] {
+      if (!raw || !raw.trim()) return Array(n).fill('');
+      const parts = raw.split('|');
+      while (parts.length < n) parts.push('');
+      return parts.slice(0, n).map(s => s.replace(/\\"/g, '"').trim());
+    }
+
+    function buildTable(slugs: string[], badgeList: string[]): HTMLElement {
+      const wrap = document.createElement('div');
+      wrap.className = 'aff-table-wrap';
+
+      const scroll = document.createElement('div');
+      scroll.className = 'aff-table-scroll';
+      const table = document.createElement('table');
+      table.className = 'aff-table';
+      const thead = document.createElement('thead');
+      const trh = document.createElement('tr');
+      ['Imagem', 'Produto', 'Avaliação', 'Preço', 'Comprar'].forEach(label => {
+        const th = document.createElement('th');
+        th.textContent = label;
+        trh.appendChild(th);
+      });
+      thead.appendChild(trh);
+      table.appendChild(thead);
+      const tbody = document.createElement('tbody');
+
+      const cardsWrap = document.createElement('div');
+      cardsWrap.className = 'aff-table-cards';
+
+      slugs.forEach((rawSlug, idx) => {
+        const slug = String(rawSlug || '').trim();
+        const p = productMap[slug];
+        if (!p) return;
+        const badge = (badgeList[idx] || '').trim();
+
+        const tr = document.createElement('tr');
+
+        const tdImg = document.createElement('td');
+        tdImg.className = 'aff-td-img';
+        const imgInner = document.createElement('div');
+        imgInner.className = 'aff-td-img-inner';
+        if (p.image) {
+          const img = document.createElement('img');
+          img.src = p.image;
+          img.alt = p.title || '';
+          img.loading = 'lazy';
+          imgInner.appendChild(img);
+        }
+        if (badge) {
+          const bEl = document.createElement('span');
+          bEl.className = 'aff-row-badge';
+          bEl.textContent = badge;
+          imgInner.appendChild(bEl);
+        }
+        tdImg.appendChild(imgInner);
+        tr.appendChild(tdImg);
+
+        const tdTitle = document.createElement('td');
+        tdTitle.className = 'aff-td-title';
+        tdTitle.textContent = p.title || '';
+        tr.appendChild(tdTitle);
+
+        const tdStars = document.createElement('td');
+        tdStars.className = 'aff-td-stars';
+        if (showRatings && p.rating) {
+          const span = document.createElement('span');
+          span.innerHTML = renderStars(p.rating) + ' <span class="num">' + Number(p.rating).toFixed(1) + '/5</span>';
+          tdStars.appendChild(span);
+        } else {
+          tdStars.textContent = '—';
+        }
+        tr.appendChild(tdStars);
+
+        const tdPrice = document.createElement('td');
+        tdPrice.className = 'aff-td-price';
+        if (showPrices && p.price) {
+          tdPrice.appendChild(document.createTextNode(p.price));
+          if (p.originalPrice) {
+            const del = document.createElement('del');
+            del.textContent = p.originalPrice;
+            tdPrice.appendChild(del);
+          }
+        } else {
+          tdPrice.textContent = '—';
+        }
+        tr.appendChild(tdPrice);
+
+        const tdCta = document.createElement('td');
+        tdCta.className = 'aff-td-cta-stack';
+        const ctaStack = document.createElement('div');
+        ctaStack.className = 'aff-td-cta-inner';
+        const cta = document.createElement('a');
+        cta.className = 'aff-table-cta' + (idx % 2 === 1 ? ' alt-green' : '');
+        cta.href = appendTag(p.amazonUrl || '#');
+        cta.target = '_blank';
+        cta.rel = 'nofollow noopener sponsored';
+        cta.textContent = (p.buttonText || defaultButtonText) + ' →';
+        ctaStack.appendChild(cta);
+        appendAffiliateExtraLinks(ctaStack, p);
+        tdCta.appendChild(ctaStack);
+        tr.appendChild(tdCta);
+
+        tbody.appendChild(tr);
+
+        const card = document.createElement('div');
+        card.className = 'aff-table-card';
+        const top = document.createElement('div');
+        top.className = 'aff-table-card-top';
+        if (p.image) {
+          const cimg = document.createElement('img');
+          cimg.src = p.image;
+          cimg.alt = '';
+          cimg.loading = 'lazy';
+          top.appendChild(cimg);
+        }
+        const textCol = document.createElement('div');
+        textCol.style.flex = '1';
+        textCol.style.minWidth = '0';
+        if (badge) {
+          const bb = document.createElement('span');
+          bb.className = 'aff-row-badge';
+          bb.style.display = 'inline-block';
+          bb.style.marginBottom = '0.35rem';
+          bb.textContent = badge;
+          textCol.appendChild(bb);
+        }
+        const h4 = document.createElement('h4');
+        h4.textContent = p.title || '';
+        textCol.appendChild(h4);
+        const meta = document.createElement('div');
+        meta.className = 'aff-table-card-meta';
+        let metaHtml = '';
+        if (showRatings && p.rating) metaHtml += renderStars(p.rating) + ' ' + Number(p.rating).toFixed(1) + '/5';
+        if (showPrices && p.price) {
+          if (metaHtml) metaHtml += ' · ';
+          metaHtml += '<strong style="color:#b45309">' + p.price + '</strong>';
+          if (p.originalPrice) metaHtml += ' <del style="color:#94a3b8">' + p.originalPrice + '</del>';
+        }
+        meta.innerHTML = metaHtml || '—';
+        textCol.appendChild(meta);
+        top.appendChild(textCol);
+        card.appendChild(top);
+        const btnStack = document.createElement('div');
+        btnStack.className = 'aff-td-cta-inner';
+        btnStack.style.marginTop = '0.75rem';
+        const cta2 = document.createElement('a');
+        cta2.className = 'aff-table-cta' + (idx % 2 === 1 ? ' alt-green' : '');
+        cta2.href = appendTag(p.amazonUrl || '#');
+        cta2.target = '_blank';
+        cta2.rel = 'nofollow noopener sponsored';
+        cta2.textContent = (p.buttonText || defaultButtonText) + ' →';
+        btnStack.appendChild(cta2);
+        appendAffiliateExtraLinks(btnStack, p);
+        card.appendChild(btnStack);
+        cardsWrap.appendChild(card);
+      });
+
+      table.appendChild(tbody);
+      scroll.appendChild(table);
+      wrap.appendChild(scroll);
+      wrap.appendChild(cardsWrap);
+      return wrap;
+    }
+
+    function decodeComparisonData(b64) {
+      if (!b64 || !String(b64).trim()) return null;
+      try {
+        const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+        const normalized = String(b64).replace(/-/g, '+').replace(/_/g, '/') + pad;
+        const raw = atob(normalized);
+        const bytes = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+        const json = new TextDecoder().decode(bytes);
+        return JSON.parse(json);
+      } catch {
+        return null;
+      }
+    }
+
+    function buildTopComparison(slugsRaw, dataObj) {
+      const wrap = document.createElement('div');
+      wrap.className = 'aff-top-wrap';
+      const grid = document.createElement('div');
+      grid.className = 'aff-top-grid';
+
+      const slugs = (slugsRaw || []).map(function (s) { return String(s || '').trim(); }).filter(Boolean).slice(0, 3);
+      const badges = dataObj && Array.isArray(dataObj.badges) ? dataObj.badges : ['', '', ''];
+      const subtitles = dataObj && Array.isArray(dataObj.subtitles) ? dataObj.subtitles : ['', '', ''];
+      const specsList = dataObj && Array.isArray(dataObj.specs) ? dataObj.specs : [[], [], []];
+
+      slugs.forEach(function (slug, idx) {
+        const p = productMap[slug];
+        if (!p) return;
+
+        const card = document.createElement('div');
+        card.className = 'aff-top-card';
+
+        const badgeTxt = String(badges[idx] || '').trim();
+        if (badgeTxt) {
+          const badgeEl = document.createElement('div');
+          badgeEl.className = 'aff-top-badge';
+          badgeEl.textContent = badgeTxt;
+          card.appendChild(badgeEl);
+        }
+
+        if (p.image) {
+          const imgW = document.createElement('div');
+          imgW.className = 'aff-top-img-wrap';
+          const img = document.createElement('img');
+          img.src = p.image;
+          img.alt = p.title || '';
+          img.loading = 'lazy';
+          imgW.appendChild(img);
+          card.appendChild(imgW);
+        }
+
+        const title = document.createElement('h3');
+        title.className = 'aff-top-title';
+        title.textContent = p.title || '';
+        card.appendChild(title);
+
+        const sub = String(subtitles[idx] || '').trim();
+        if (sub) {
+          const subEl = document.createElement('p');
+          subEl.className = 'aff-top-sub';
+          subEl.textContent = sub;
+          card.appendChild(subEl);
+        }
+
+        if (showPrices && p.price) {
+          const priceEl = document.createElement('div');
+          priceEl.className = 'aff-top-price';
+          priceEl.appendChild(document.createTextNode(p.price));
+          if (p.originalPrice) {
+            const del = document.createElement('del');
+            del.textContent = p.originalPrice;
+            priceEl.appendChild(del);
+          }
+          card.appendChild(priceEl);
+        }
+
+        const specs = specsList[idx] && Array.isArray(specsList[idx]) ? specsList[idx] : [];
+        if (specs.length > 0) {
+          const ul = document.createElement('ul');
+          ul.className = 'aff-top-specs';
+          specs.forEach(function (line) {
+            const t = String(line || '').trim();
+            if (!t) return;
+            const li = document.createElement('li');
+            li.textContent = t;
+            ul.appendChild(li);
+          });
+          if (ul.children.length) card.appendChild(ul);
+        }
+
+        const cta = document.createElement('a');
+        cta.className = 'aff-top-cta c' + (idx + 1);
+        cta.href = appendTag(p.amazonUrl || '#');
+        cta.target = '_blank';
+        cta.rel = 'nofollow noopener sponsored';
+        cta.textContent = (p.buttonText || defaultButtonText) + ' →';
+        card.appendChild(cta);
+        appendAffiliateExtraLinks(card, p);
+
+        grid.appendChild(card);
+      });
+
+      wrap.appendChild(grid);
       return wrap;
     }
 
@@ -548,6 +1256,8 @@ const activeProducts = products.filter((p: any) => p.enabled !== false);
           body.appendChild(price);
         }
 
+        const btnCol = document.createElement('div');
+        btnCol.className = 'aff-compare-cta-stack';
         const cta = document.createElement('a');
         cta.className = 'aff-compare-cta';
         cta.href = appendTag(p.amazonUrl || '#');
@@ -555,24 +1265,9 @@ const activeProducts = products.filter((p: any) => p.enabled !== false);
         cta.rel = 'nofollow noopener sponsored';
         cta.style.background = buttonColor;
         cta.textContent = (p.buttonText || defaultButtonText) + ' →';
-        body.appendChild(cta);
-
-        if (p.extraLinks && p.extraLinks.length > 0) {
-          p.extraLinks.forEach((link: { label: string; url: string }) => {
-            if (!link.label || !link.url) return;
-            const sec = document.createElement('a');
-            sec.className = 'aff-compare-cta';
-            sec.href = link.url;
-            sec.target = '_blank';
-            sec.rel = 'nofollow noopener sponsored';
-            sec.style.background = '#fff';
-            sec.style.color = '#374151';
-            sec.style.border = '1.5px solid #e2e8f0';
-            sec.style.marginTop = '0.4rem';
-            sec.textContent = link.label + ' →';
-            body.appendChild(sec);
-          });
-        }
+        btnCol.appendChild(cta);
+        appendAffiliateExtraLinks(btnCol, p);
+        body.appendChild(btnCol);
 
         card.appendChild(body);
         grid.appendChild(card);
@@ -597,10 +1292,11 @@ const activeProducts = products.filter((p: any) => p.enabled !== false);
       paragraphs.forEach(p => {
         const text = p.textContent || '';
 
-        const singleMatch = text.match(/^\[affiliate:([a-z0-9_-]+)\]$/i);
+        const singleMatch = text.match(/^\[affiliate:([a-z0-9_-]+)(?:\s+links="([^"]*)")?\]$/i);
         if (singleMatch) {
-          const product = productMap[singleMatch[1]];
+          let product = productMap[singleMatch[1]];
           if (product) {
+            product = mergeProductWithInlineLinks(product, singleMatch[2]);
             const box = buildProductBox(product);
             p.replaceWith(box);
             foundAny = true;
@@ -616,20 +1312,51 @@ const activeProducts = products.filter((p: any) => p.enabled !== false);
           foundAny = true;
           return;
         }
+
+        const tableMatch = text.match(/^\[affiliate_table\s+ids="([^"]+)"(?:\s+badges="([^"]*)")?\s*\]$/i);
+        if (tableMatch) {
+          const slugs = tableMatch[1].split(',').map((s: string) => s.trim()).filter(Boolean);
+          const badges = parseTableBadges(tableMatch[2], slugs.length);
+          const tableEl = buildTable(slugs, badges);
+          p.replaceWith(tableEl);
+          foundAny = true;
+          return;
+        }
+
+        const topMatch = text.match(/^\[affiliate_comparison\s+ids="([^"]+)"(?:\s+data="([^"]*)")?\s*\]$/i);
+        if (topMatch) {
+          const slugs = topMatch[1].split(',').map((s: string) => s.trim()).filter(Boolean);
+          const dataObj = decodeComparisonData(topMatch[2]);
+          const topEl = buildTopComparison(slugs, dataObj);
+          p.replaceWith(topEl);
+          foundAny = true;
+          return;
+        }
       });
 
       // Also handle shortcodes not wrapped in <p> (raw text nodes)
       // by scanning innerHTML as fallback
       if (!foundAny) {
         const newHtml = postContent.innerHTML
+          .replace(/\[affiliate_comparison\s+ids="([^"]+)"(?:\s+data="([^"]*)")?\s*\]/gi, (_: string, ids: string, dataRaw: string) => {
+            const slugs = ids.split(',').map((s: string) => s.trim()).filter(Boolean);
+            const dataObj = decodeComparisonData(dataRaw);
+            return buildTopComparison(slugs, dataObj).outerHTML;
+          })
+          .replace(/\[affiliate_table\s+ids="([^"]+)"(?:\s+badges="([^"]*)")?\s*\]/gi, (_: string, ids: string, badgesRaw: string) => {
+            const slugs = ids.split(',').map((s: string) => s.trim()).filter(Boolean);
+            const badges = parseTableBadges(badgesRaw, slugs.length);
+            return buildTable(slugs, badges).outerHTML;
+          })
           .replace(/\[affiliate-compare:([a-z0-9_,\s-]+)\]/gi, (_: string, slugs: string) => {
             const grid = buildCompareCards(slugs.split(','));
             return grid.outerHTML;
           })
-          .replace(/\[affiliate:([a-z0-9_-]+)\]/gi, (_: string, slug: string) => {
-            const p = productMap[slug];
-            if (!p) return _;
-            return buildProductBox(p).outerHTML;
+          .replace(/\[affiliate:([a-z0-9_-]+)(?:\s+links="([^"]*)")?\]/gi, (_: string, slug: string, linksRaw: string) => {
+            let pr = productMap[slug];
+            if (!pr) return _;
+            pr = mergeProductWithInlineLinks(pr, linksRaw);
+            return buildProductBox(pr).outerHTML;
           });
         if (newHtml !== postContent.innerHTML) {
           postContent.innerHTML = newHtml;

@@ -1,1 +1,85 @@
-[]
+[
+  {
+    "slug": "carrinho-de-bebe-passeio-vira-berco-nivi-maxi-baby-preto",
+    "title": "Carrinho de Bebê Passeio Vira Berço NIVI Maxi Baby (Preto)",
+    "description": "Carrinho com para Virar berço",
+    "image": "https://m.media-amazon.com/images/I/51NW+AleWbL._AC_SX522_.jpg",
+    "amazonUrl": "https://www.amazon.com.br/Maxi-Baby-Carrinho-Passeio-COMPASS/dp/B0CPN39346/?_encoding=UTF8&pd_rd_w=Fy6v1&content-id=amzn1.sym.61456028-3a9b-48b8-875c-7a80718bde94&pf_rd_p=61456028-3a9b-48b8-875c-7a80718bde94&pf_rd_r=7AKNPQJMRWS7E569RQJ4&pd_rd_wg=CtWzK&pd_rd_r=e01a4247-11fa-4322-94ea-17a7896f162b&ref_=pd_hp_d_atf_dealz_cs&th=1",
+    "extraLinks": [],
+    "price": "",
+    "originalPrice": "",
+    "rating": 4.5,
+    "pros": [
+      "Bom",
+      "bom",
+      "bom"
+    ],
+    "cons": [
+      "ruim",
+      "ruim",
+      "ruim",
+      "ruim"
+    ],
+    "badge": "Melhor Escolha",
+    "buttonText": "Ver na amazon",
+    "enabled": true,
+    "id": "p_1775259345801"
+  },
+  {
+    "id": "p_1775525715200",
+    "slug": "carrinho-de-bebe-passeio-vira-berco-nivi-maxi-baby-cinza",
+    "title": "Carrinho de Bebê Passeio Vira Berço NIVI Maxi Baby (Cinza)",
+    "description": "ssssssssssss",
+    "image": "https://m.media-amazon.com/images/I/61TcnnZR7aL._AC_SY450_.jpg",
+    "amazonUrl": "https://www.amazon.com.br/Maxi-Baby-Carrinho-Passeio-COMPASS/dp/B0CPN2L6MQ/ref=dp-upsell-widget_d_sccl_1_1/147-8305148-9865155?pd_rd_w=2LN5Y&content-id=amzn1.sym.56aec2a0-5491-4b8d-bb36-646100e48f33&pf_rd_p=56aec2a0-5491-4b8d-bb36-646100e48f33&pf_rd_r=8PHGKET1PG8JJ5SEJXKX&pd_rd_wg=eklTd&pd_rd_r=a624377c-c304-44fb-b06b-657169be63b1&pd_rd_i=B0CPN2L6MQ&th=1",
+    "extraLinks": [],
+    "price": "",
+    "originalPrice": "",
+    "rating": 4.5,
+    "pros": [
+      "1",
+      "1",
+      "1"
+    ],
+    "cons": [
+      "1",
+      "1",
+      "1",
+      "1"
+    ],
+    "badge": "Melhor Escolha",
+    "buttonText": "Ver na amazon",
+    "enabled": true,
+    "asin": "B0CPN2L6MQ"
+  },
+  {
+    "id": "p_1775527871873",
+    "slug": "carrinho-bebe-passeio-menina-menino",
+    "asin": "B0CHFSQ83X",
+    "title": "1",
+    "description": "1",
+    "image": "https://m.media-amazon.com/images/I/61SuIpWeQ+L._AC_SY450_.jpg",
+    "amazonUrl": "https://www.amazon.com.br/dp/B0CHFSQ83X/ref=sspa_dk_detail_2?pd_rd_i=B0CHFSQ83X&pd_rd_w=BXlDS&content-id=amzn1.sym.1868afab-d777-4b70-8899-1b323ad91d95&pf_rd_p=1868afab-d777-4b70-8899-1b323ad91d95&pf_rd_r=TBX0PBZHXFA6SK07WEYY&pd_rd_wg=bQ8GM&pd_rd_r=bf754446-6b8f-4ffb-a5c4-9efb2f5b8b72&sp_csd=d2lkZ2V0TmFtZT1zcF9kZXRhaWw&th=1",
+    "extraLinks": [
+      {
+        "label": "Mercado livre",
+        "url": "shttps://www.amazon.com.br/dp/B0CHFSQ83X/ref=sspa_dk_detail_2?pd_rd_i=B0CHFSQ83X&pd_rd_w=BXlDS&content-id=amzn1.sym.1868afab-d777-4b70-8899-1b323ad91d95&pf_rd_p=1868afab-d777-4b70-8899-1b323ad91d95&pf_rd_r=TBX0PBZHXFA6SK07WEYY&pd_rd_wg=bQ8GM&pd_rd_r=bf754446-6b8f-4ffb-a5c4-9efb2f5b8b72&sp_csd=d2lkZ2V0TmFtZT1zcF9kZXRhaWw&th=1"
+      }
+    ],
+    "price": "",
+    "originalPrice": "",
+    "rating": 4.5,
+    "pros": [
+      "1",
+      "1",
+      "1"
+    ],
+    "cons": [
+      "11",
+      "1"
+    ],
+    "badge": "Premium",
+    "buttonText": "Ver na amazon",
+    "enabled": true
+  }
+]

@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import { readData } from '../../lib/readData';
+import { blogIndexUrl } from '../../lib/blogRoutes';
 const siteConfig = readData('siteConfig.json');
 const categoriesData = readData('categories.json', []);
 
@@ -68,7 +69,7 @@ const allCategories = finalCategoriesData.length > 0 ? finalCategoriesData : cat
         <h3 class="font-bold text-white mb-4 uppercase text-sm tracking-wider">Categorias</h3>
         <ul class="space-y-2">
           <li>
-            <a href="/blog" class="text-white/70 hover:text-white text-sm transition-colors flex items-center gap-2">
+            <a href={blogIndexUrl()} class="text-white/70 hover:text-white text-sm transition-colors flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-primary-500 inline-block"></span>
               Todos os Artigos
             </a>

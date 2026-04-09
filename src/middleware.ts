@@ -36,6 +36,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
                 return context.redirect(r.to, r.type || 301);
             }
         }
+
+        /** Antigo /blog/slug → /slug (301; posts ficam na raiz) */
+        const blogLegacy = pathname.replace(/\/$/, '').match(/^\/blog\/([a-z0-9]+(?:-[a-z0-9]+)*)$/);
+        if (blogLegacy) {
+            return context.redirect(`/${blogLegacy[1]}`, 301);
+        }
     }
 
     // Rotas públicas: pass through

@@ -1,9 +1,92 @@
-import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, Loader2, ArrowLeft, Image as ImageIcon, Eye, Edit3 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Save, AlertCircle, Loader2, ArrowLeft, Image as ImageIcon, Eye, Edit3, Package, Pencil, Table2, Columns3 } from 'lucide-react';
 import { marked } from 'marked';
 import { triggerToast } from './CmsToaster';
 import { githubApi } from '../../lib/adminApi';
 import SEOScoreWidget from '../../plugins/seo/SEOScoreWidget';
+import AffiliatePostModal, { type AffiliateInsertPayload } from './AffiliatePostModal';
+import AffiliateTableModal from './AffiliateTableModal';
+import AffiliateComparisonModal from './AffiliateComparisonModal';
+import { buildAffiliateShortcode } from '../../lib/affiliateShortcode';
+import { normalizePostSlug, isValidPostSlug } from '../../lib/postSlug';
+
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/**
+ * Slug do produto só se a seleção/cursor se cruzar com um bloco [affiliate:slug] ou [affiliate:slug links="..."].
+ * Permite espaço opcional após os dois pontos (ex.: [affiliate: slug]).
+ */
+function extractAffiliateSlugFromQuill(quill: any, focusEditor = false): string | null {
+    try {
+        const range = quill.getSelection(focusEditor);
+        if (!range) return null;
+        const selStart = range.index;
+        const selEnd = range.index + Math.max(range.length, 1);
+        const len = quill.getLength();
+        const winFrom = Math.max(0, selStart - 6000);
+        const winTo = Math.min(len, selEnd + 6000);
+        const segment = quill.getText(winFrom, winTo - winFrom);
+        const re = /\[affiliate:\s*([a-z0-9_-]+)(?:\s+links="[^"]*")?\]/gi;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(segment)) !== null) {
+            const absStart = winFrom + m.index;
+            const absEnd = absStart + m[0].length;
+            if (selStart < absEnd && selEnd > absStart) return m[1];
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+type AffiliateEditTarget =
+    | { kind: 'product'; slug: string }
+    | { kind: 'table'; start: number; end: number; raw: string }
+    | { kind: 'comparison'; start: number; end: number; raw: string };
+
+/** Ordem: Top Comparação → tabela → produto único (cada um com regex distinta). */
+function extractAffiliateEditTargetFromQuill(quill: any, focusEditor = false): AffiliateEditTarget | null {
+    try {
+        const range = quill.getSelection(focusEditor);
+        if (!range) return null;
+        const selStart = range.index;
+        const selEnd = range.index + Math.max(range.length, 1);
+        const len = quill.getLength();
+        const winFrom = Math.max(0, selStart - 8000);
+        const winTo = Math.min(len, selEnd + 8000);
+        const segment = quill.getText(winFrom, winTo - winFrom);
+
+        const tryOverlap = (re: RegExp) => {
+            let m: RegExpExecArray | null;
+            re.lastIndex = 0;
+            while ((m = re.exec(segment)) !== null) {
+                const absStart = winFrom + m.index;
+                const absEnd = absStart + m[0].length;
+                if (selStart < absEnd && selEnd > absStart) return { raw: m[0], start: absStart, end: absEnd };
+            }
+            return null;
+        };
+
+        const comp = tryOverlap(/\[affiliate_comparison[^\]]*\]/gi);
+        if (comp) return { kind: 'comparison', ...comp };
+
+        const tab = tryOverlap(/\[affiliate_table[^\]]*\]/gi);
+        if (tab) return { kind: 'table', ...tab };
+
+        const slug = extractAffiliateSlugFromQuill(quill, focusEditor);
+        if (slug) return { kind: 'product', slug };
+
+        return null;
+    } catch {
+        return null;
+    }
+}
 
 interface PostEditorProps {
     filePath: string | null; // null = novo post
@@ -20,6 +103,136 @@ export default function PostEditor({ filePath }: PostEditorProps) {
     const [isPreview, setIsPreview] = useState(false);
     const [pendingUploads, setPendingUploads] = useState<Record<string, File>>({});
     const [QuillEditor, setQuillEditor] = useState<any>(null);
+    const quillRef = useRef<any>(null);
+    const [affiliateModalOpen, setAffiliateModalOpen] = useState(false);
+    const [affiliateInitialSlug, setAffiliateInitialSlug] = useState<string | null>(null);
+    const [affiliateFab, setAffiliateFab] = useState<{ slug: string; top: number; left: number } | null>(null);
+    const [affiliateTableModalOpen, setAffiliateTableModalOpen] = useState(false);
+    const [affiliateComparisonModalOpen, setAffiliateComparisonModalOpen] = useState(false);
+    const [affiliateTableInitialShortcode, setAffiliateTableInitialShortcode] = useState<string | null>(null);
+    const [affiliateComparisonInitialShortcode, setAffiliateComparisonInitialShortcode] = useState<string | null>(null);
+    /** Ao editar bloco existente: substituir este intervalo no Quill (índices em getText). */
+    const affiliateReplaceRangeRef = useRef<{ from: number; to: number } | null>(null);
+
+    const openAffiliateModal = (slug: string | null) => {
+        setAffiliateInitialSlug(slug);
+        setAffiliateModalOpen(true);
+    };
+
+    const updateAffiliateFab = useCallback(() => {
+        if (isPreview || affiliateModalOpen || affiliateTableModalOpen || affiliateComparisonModalOpen) {
+            setAffiliateFab(null);
+            return;
+        }
+        const quill = quillRef.current?.getEditor?.();
+        if (!quill) {
+            setAffiliateFab(null);
+            return;
+        }
+        const targetFab = extractAffiliateEditTargetFromQuill(quill, false);
+        const slug = targetFab?.kind === 'product' ? targetFab.slug : null;
+        if (!slug) {
+            setAffiliateFab(null);
+            return;
+        }
+        const range = quill.getSelection(false);
+        if (!range) {
+            setAffiliateFab(null);
+            return;
+        }
+        const b = quill.getBounds(range.index, Math.max(range.length, 1));
+        const container = quill.container as HTMLElement;
+        const rect = container.getBoundingClientRect();
+        const top = rect.top + b.top - 6;
+        const left = rect.left + b.left + b.width + 8;
+        setAffiliateFab({ slug, top, left });
+    }, [isPreview, affiliateModalOpen, affiliateTableModalOpen, affiliateComparisonModalOpen]);
+
+    /** H2 com título do produto (SEO) + parágrafo com shortcode — slug vem do cadastro em affiliateProducts.json */
+    const insertAffiliateSeoBlock = (payload: AffiliateInsertPayload) => {
+        if (payload.insertIntoEditor === false) return;
+        const shortcode = buildAffiliateShortcode(payload.slug, payload.extraLinks);
+        const titleHtml = escapeHtml(payload.title.trim() || 'Produto');
+        const html = `<h2>${titleHtml}</h2><p>${shortcode}</p>`;
+        try {
+            const quill = quillRef.current?.getEditor?.();
+            if (quill) {
+                const range = quill.getSelection(false);
+                let index = range ? range.index : quill.getLength();
+                if (index < 0 || index > quill.getLength()) index = quill.getLength();
+                quill.clipboard.dangerouslyPasteHTML(index, html);
+                setPost(p => ({ ...p, content: quill.root.innerHTML }));
+                return;
+            }
+        } catch {
+            /* fallback abaixo */
+        }
+        setPost(p => ({
+            ...p,
+            content: p.content ? `${p.content}<p><br></p>${html}` : html,
+        }));
+    };
+
+    const onAffiliateSaved = (payload: AffiliateInsertPayload) => {
+        if (payload.insertIntoEditor === false) return;
+        insertAffiliateSeoBlock(payload);
+    };
+
+    const insertAffiliateTableShortcode = (shortcode: string) => {
+        const html = `<p>${shortcode}</p>`;
+        try {
+            const quill = quillRef.current?.getEditor?.();
+            if (quill) {
+                const rep = affiliateReplaceRangeRef.current;
+                if (rep && rep.to > rep.from) {
+                    quill.deleteText(rep.from, rep.to - rep.from);
+                    quill.clipboard.dangerouslyPasteHTML(rep.from, html);
+                    affiliateReplaceRangeRef.current = null;
+                } else {
+                    const range = quill.getSelection(false);
+                    let index = range ? range.index : quill.getLength();
+                    if (index < 0 || index > quill.getLength()) index = quill.getLength();
+                    quill.clipboard.dangerouslyPasteHTML(index, html);
+                }
+                setPost(p => ({ ...p, content: quill.root.innerHTML }));
+                return;
+            }
+        } catch { /* fallback */ }
+        setPost(p => ({
+            ...p,
+            content: p.content ? `${p.content}<p><br></p>${html}` : html,
+        }));
+    };
+
+    const insertAffiliateComparisonShortcode = (shortcode: string) => {
+        insertAffiliateTableShortcode(shortcode);
+    };
+
+    useEffect(() => {
+        if (!QuillEditor || isPreview) return;
+        let detach: (() => void) | undefined;
+        const id = window.setTimeout(() => {
+            const quill = quillRef.current?.getEditor?.();
+            if (!quill) return;
+            const onSel = () => {
+                requestAnimationFrame(() => updateAffiliateFab());
+            };
+            quill.on('selection-change', onSel);
+            quill.on('text-change', onSel);
+            const root = quill.root as HTMLElement;
+            root.addEventListener('scroll', onSel);
+            onSel();
+            detach = () => {
+                quill.off('selection-change', onSel);
+                quill.off('text-change', onSel);
+                root.removeEventListener('scroll', onSel);
+            };
+        }, 0);
+        return () => {
+            clearTimeout(id);
+            detach?.();
+        };
+    }, [QuillEditor, isPreview, affiliateModalOpen, affiliateTableModalOpen, affiliateComparisonModalOpen, updateAffiliateFab]);
 
     const formatDateForInput = (dateStr: string) => {
         try {
@@ -80,7 +293,11 @@ export default function PostEditor({ filePath }: PostEditorProps) {
     }, [filePath, isEditing]);
 
     const handleTitleChange = (val: string) => {
-        setPost(p => ({ ...p, title: val, slug: isEditing ? p.slug : val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') }));
+        setPost(p => ({
+            ...p,
+            title: val,
+            slug: isEditing ? p.slug : normalizePostSlug(val),
+        }));
     };
 
     const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
@@ -113,7 +330,12 @@ export default function PostEditor({ filePath }: PostEditorProps) {
 
     const handleSave = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        if (!post.title || !post.slug) { setError('Título e Slug (URL) são obrigatórios.'); return; }
+        if (!post.title || !post.slug.trim()) { setError('Título e Slug (URL) são obrigatórios.'); return; }
+        const slug = normalizePostSlug(post.slug);
+        if (!isValidPostSlug(slug)) {
+            setError('Slug inválido: use de 3 a 120 caracteres, só letras minúsculas, números e hífens (ex.: galzerano-ou-burigotto-2026).');
+            return;
+        }
         setSaving(true); setError('');
         triggerToast('Processando e salvando artigo...', 'progress', 20);
         try {
@@ -129,9 +351,10 @@ export default function PostEditor({ filePath }: PostEditorProps) {
             const cleanedContent = post.content.replace(/&nbsp;/g, ' ').replace(/\u00A0/g, ' ');
             const finalHtmlContent = await extractAndUploadInlineImages(cleanedContent);
             const markdown = `---\ntitle: "${post.title.replace(/"/g, '\\"')}"\ndescription: "${post.description.replace(/"/g, '\\"')}"\npubDate: "${post.pubDate}"\nheroImage: "${finalHeroImage}"\ncategory: "${post.category}"\nauthor: "${post.author}"\ndraft: ${post.draft}\n---\n${finalHtmlContent}`;
-            const targetPath = `src/content/blog/${post.slug}.md`;
-            const res = await githubApi('write', targetPath, { content: markdown, sha: fileSha || undefined, message: `CMS: ${isEditing ? 'Edição' : 'Criação'} do artigo ${post.slug}` });
+            const targetPath = `src/content/blog/${slug}.md`;
+            const res = await githubApi('write', targetPath, { content: markdown, sha: fileSha || undefined, message: `CMS: ${isEditing ? 'Edição' : 'Criação'} do artigo ${slug}` });
             if (res.sha) setFileSha(res.sha);
+            setPost(p => ({ ...p, slug }));
             setPendingUploads({});
             triggerToast('Artigo salvo com sucesso!', 'success', 100);
             if (!isEditing) setTimeout(() => { window.location.href = '/admin/posts'; }, 1500);
@@ -158,7 +381,7 @@ export default function PostEditor({ filePath }: PostEditorProps) {
                     <a href="/admin/posts" className="text-slate-400 hover:text-violet-600 transition-colors p-1.5 rounded-lg hover:bg-violet-50"><ArrowLeft className="w-5 h-5" /></a>
                     <div>
                         <h2 className="text-lg font-bold text-slate-800">{isEditing ? 'Editar Artigo' : 'Novo Artigo'}</h2>
-                        {post.slug && <p className="text-xs font-mono text-slate-400">/blog/{post.slug}</p>}
+                        {post.slug && <p className="text-xs font-mono text-slate-400">/{post.slug}</p>}
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -184,7 +407,8 @@ export default function PostEditor({ filePath }: PostEditorProps) {
                         <input type="text" value={post.title} onChange={e => handleTitleChange(e.target.value)} className={inputClass} placeholder="Título do artigo..." />
                         <div className="mt-3">
                             <label className={labelClass}>Slug (URL) *</label>
-                            <input type="text" value={post.slug} onChange={e => setPost(p => ({ ...p, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') }))} className={`${inputClass} font-mono text-xs`} placeholder="url-do-artigo" />
+                            <input type="text" value={post.slug} onChange={e => setPost(p => ({ ...p, slug: normalizePostSlug(e.target.value) }))} className={`${inputClass} font-mono text-xs`} placeholder="ex.: galzerano-ou-burigotto-melhor-marca-2026" />
+                        <p className="text-[11px] text-slate-400 mt-1.5">URL pública: <span className="font-mono text-slate-500">/{post.slug || '…'}</span> — 3 a 120 caracteres, minúsculas e hífens.</p>
                         </div>
                         <div className="mt-3">
                             <label className={labelClass}>Descrição / Meta Description</label>
@@ -194,16 +418,135 @@ export default function PostEditor({ filePath }: PostEditorProps) {
 
                     {/* Content Editor */}
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                        <label className={labelClass}>Conteúdo do Artigo</label>
+                        <div className="mb-3 space-y-3">
+                            <div className="min-w-0">
+                                <label className={labelClass + ' mb-0'}>Conteúdo do Artigo</label>
+                                <p className="text-[11px] text-slate-400 mt-1.5 break-words leading-relaxed">
+                                    Com o cursor ou seleção em{' '}
+                                    <code className="text-amber-700 bg-amber-50 px-1 rounded break-all">[affiliate:slug]</code>,{' '}
+                                    <code className="text-emerald-800 bg-emerald-50 px-1 rounded break-all">[affiliate_table …]</code> ou{' '}
+                                    <code className="text-violet-800 bg-violet-50 px-1 rounded break-all">[affiliate_comparison …]</code>, use{' '}
+                                    <strong className="text-slate-500">Editar</strong> ou o lápis (produto único) para alterar sem duplicar o bloco.
+                                </p>
+                            </div>
+                            {!isPreview && (
+                                <div className="flex flex-wrap gap-2 items-center w-full">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const q = quillRef.current?.getEditor?.();
+                                            const t = q ? extractAffiliateEditTargetFromQuill(q, true) : null;
+                                            const slug = t?.kind === 'product' ? t.slug : null;
+                                            openAffiliateModal(slug);
+                                        }}
+                                        className="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold text-white shadow-sm transition-all active:scale-[0.98]"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #f59e0b, #f97316)',
+                                            boxShadow: '0 4px 12px -2px rgba(245, 158, 11, 0.35)',
+                                        }}
+                                        title={affiliateFab ? 'Editar produto do shortcode selecionado' : 'Novo produto (ou selecione um shortcode para editar)'}
+                                    >
+                                        <Package className="w-3.5 h-3.5 shrink-0" />
+                                        + Adicionar Produto Afiliado
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            affiliateReplaceRangeRef.current = null;
+                                            setAffiliateTableInitialShortcode(null);
+                                            setAffiliateTableModalOpen(true);
+                                        }}
+                                        className="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold text-white shadow-sm transition-all active:scale-[0.98]"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #059669, #0d9488)',
+                                            boxShadow: '0 4px 12px -2px rgba(5, 150, 105, 0.35)',
+                                        }}
+                                        title="Inserir tabela comparativa (3 a 5 produtos)"
+                                    >
+                                        <Table2 className="w-3.5 h-3.5 shrink-0" />
+                                        + Inserir Tabela Comparativa
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            affiliateReplaceRangeRef.current = null;
+                                            setAffiliateComparisonInitialShortcode(null);
+                                            setAffiliateComparisonModalOpen(true);
+                                        }}
+                                        className="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold text-white shadow-sm transition-all active:scale-[0.98]"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                                            boxShadow: '0 4px 12px -2px rgba(124, 58, 237, 0.35)',
+                                        }}
+                                        title="Top Comparação — 3 cards em colunas"
+                                    >
+                                        <Columns3 className="w-3.5 h-3.5 shrink-0" />
+                                        + Inserir Top Comparação
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const q = quillRef.current?.getEditor?.();
+                                            const t = q ? extractAffiliateEditTargetFromQuill(q, true) : null;
+                                            if (!t) {
+                                                triggerToast(
+                                                    'Selecione ou coloque o cursor em um bloco: produto [affiliate:…], tabela [affiliate_table …] ou Top Comparação [affiliate_comparison …].',
+                                                    'error',
+                                                    200
+                                                );
+                                                return;
+                                            }
+                                            if (t.kind === 'product') {
+                                                openAffiliateModal(t.slug);
+                                                return;
+                                            }
+                                            affiliateReplaceRangeRef.current = { from: t.start, to: t.end };
+                                            if (t.kind === 'table') {
+                                                setAffiliateTableInitialShortcode(t.raw);
+                                                setAffiliateTableModalOpen(true);
+                                                return;
+                                            }
+                                            setAffiliateComparisonInitialShortcode(t.raw);
+                                            setAffiliateComparisonModalOpen(true);
+                                        }}
+                                        className="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold border border-amber-400 text-amber-800 bg-amber-50 hover:bg-amber-100 transition-all"
+                                        title="Editar bloco afiliado selecionado (produto, tabela ou Top Comparação)"
+                                    >
+                                        <Pencil className="w-3.5 h-3.5 shrink-0" />
+                                        Editar
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                         {isPreview ? (
                             <div className="prose prose-slate max-w-none border border-slate-200 rounded-xl p-6 min-h-[300px]" dangerouslySetInnerHTML={{ __html: post.content }} />
                         ) : QuillEditor ? (
-                            <QuillEditor
-                                theme="snow"
-                                value={post.content}
-                                onChange={(val: string) => setPost(p => ({ ...p, content: val }))}
-                                style={{ minHeight: '300px' }}
-                            />
+                            <div className="relative">
+                                <QuillEditor
+                                    ref={quillRef}
+                                    theme="snow"
+                                    value={post.content}
+                                    onChange={(val: string) => setPost(p => ({ ...p, content: val }))}
+                                    style={{ minHeight: '300px' }}
+                                />
+                                {affiliateFab && !affiliateModalOpen && !affiliateTableModalOpen && !affiliateComparisonModalOpen && (
+                                    <button
+                                        type="button"
+                                        className="fixed z-[60] flex items-center justify-center w-9 h-9 rounded-full shadow-lg border-2 border-white text-white bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 transition-all hover:scale-105"
+                                        style={{ top: affiliateFab.top, left: affiliateFab.left }}
+                                        title="Editar este produto"
+                                        aria-label="Editar produto afiliado"
+                                        onClick={e => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            openAffiliateModal(affiliateFab.slug);
+                                            setAffiliateFab(null);
+                                        }}
+                                    >
+                                        <Pencil className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
                         ) : (
                             <div className="flex items-center justify-center p-12 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-2" />Carregando editor...</div>
                         )}
@@ -291,6 +634,41 @@ export default function PostEditor({ filePath }: PostEditorProps) {
                     />
                 </div>
             </div>
+
+            <AffiliatePostModal
+                key={affiliateModalOpen ? `aff-${affiliateInitialSlug ?? 'new'}` : 'aff-closed'}
+                open={affiliateModalOpen}
+                initialSlug={affiliateInitialSlug}
+                onClose={() => {
+                    setAffiliateModalOpen(false);
+                    setAffiliateInitialSlug(null);
+                }}
+                onInserted={onAffiliateSaved}
+            />
+            <AffiliateTableModal
+                key={affiliateTableModalOpen ? `tbl-${affiliateTableInitialShortcode ? 'edit' : 'new'}` : 'tbl-closed'}
+                open={affiliateTableModalOpen}
+                onClose={() => {
+                    setAffiliateTableModalOpen(false);
+                    setAffiliateTableInitialShortcode(null);
+                    affiliateReplaceRangeRef.current = null;
+                }}
+                onInsert={insertAffiliateTableShortcode}
+                initialShortcode={affiliateTableInitialShortcode}
+                isEditMode={!!affiliateTableInitialShortcode}
+            />
+            <AffiliateComparisonModal
+                key={affiliateComparisonModalOpen ? `cmp-${affiliateComparisonInitialShortcode ? 'edit' : 'new'}` : 'cmp-closed'}
+                open={affiliateComparisonModalOpen}
+                onClose={() => {
+                    setAffiliateComparisonModalOpen(false);
+                    setAffiliateComparisonInitialShortcode(null);
+                    affiliateReplaceRangeRef.current = null;
+                }}
+                onInsert={insertAffiliateComparisonShortcode}
+                initialShortcode={affiliateComparisonInitialShortcode}
+                isEditMode={!!affiliateComparisonInitialShortcode}
+            />
         </div>
     );
 }

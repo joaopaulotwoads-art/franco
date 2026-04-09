@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Sidebar from '../components/Sidebar.astro';
 import { getCollection } from 'astro:content';
 import { readData } from '../lib/readData';
+import { postUrl } from '../lib/blogRoutes';
 const siteConfig = readData('siteConfig.json');
 const homeConfig = readData('home.json') as any;
 
@@ -42,7 +43,7 @@ function formatDate(date: Date) {
           {latestPosts.map(post => (
             <article class="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col sm:flex-row hover:shadow-md transition-shadow">
               {post.data.heroImage && (
-                <a href={`/blog/${post.slug}`} class="sm:w-48 flex-shrink-0">
+                <a href={postUrl(post.slug)} class="sm:w-48 flex-shrink-0">
                   <img
                     src={post.data.heroImage}
                     alt={post.data.title}
@@ -55,7 +56,7 @@ function formatDate(date: Date) {
                   <a href={`/categoria/${post.data.category.toLowerCase().replace(/[^a-z0-9]/g, '-')}`} class="category-badge self-start">{post.data.category}</a>
                 )}
                 <h3 class="text-lg font-bold leading-snug" style="font-family: var(--font-heading);">
-                  <a href={`/blog/${post.slug}`} class="text-gray-900 hover:text-[--color-primary] transition-colors">{post.data.title}</a>
+                  <a href={postUrl(post.slug)} class="text-gray-900 hover:text-[--color-primary] transition-colors">{post.data.title}</a>
                 </h3>
                 {post.data.description && (
                   <p class="text-sm text-gray-500 line-clamp-2">{post.data.description}</p>

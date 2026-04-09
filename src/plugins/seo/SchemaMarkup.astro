@@ -6,6 +6,7 @@
  * Schemas: Article, BreadcrumbList, WebSite (SearchAction).
  */
 import { readData } from '../../lib/readData';
+import { blogIndexUrl } from '../../lib/blogRoutes';
 
 interface Props {
   title: string;
@@ -75,7 +76,7 @@ const websiteData = websiteSchema ? {
   ...(sameAs.length > 0 ? { sameAs } : {}),
   potentialAction: {
     '@type': 'SearchAction',
-    target: { '@type': 'EntryPoint', urlTemplate: `${siteUrl}/blog?q={search_term_string}` },
+    target: { '@type': 'EntryPoint', urlTemplate: `${siteUrl}${blogIndexUrl()}?q={search_term_string}` },
     'query-input': 'required name=search_term_string',
   },
 } : null;

@@ -1,5 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
+import { postUrl } from '../../lib/blogRoutes';
 import PostCardList from '../ui/PostCardList.astro';
 
 interface Props {
@@ -29,7 +30,7 @@ const recentPosts = otherPosts.slice(0, 4);
         {featuredPost ? (
           <article class="group relative rounded-2xl overflow-hidden bg-white shadow-lg h-full min-h-[400px]">
             <!-- Imagem com overlay -->
-            <a href={`/blog/${featuredPost.slug}`} class="block relative overflow-hidden h-full">
+            <a href={postUrl(featuredPost.slug)} class="block relative overflow-hidden h-full">
               {featuredPost.data.heroImage ? (
                 <img
                   src={featuredPost.data.heroImage}

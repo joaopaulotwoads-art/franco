@@ -60,8 +60,10 @@
     "affiliates": {
         "enabled": true,
         "amazonTag": "",
+        "amazonAccessKey": "",
+        "amazonSecretKey": "",
         "defaultButtonText": "Ver na Amazon",
-        "buttonColor": "#FF9900",
+        "buttonColor": "#ff0040",
         "showPrices": true,
         "showRatings": true,
         "showProscons": true,
@@ -70,13 +72,13 @@
         "showDisclaimer": true
     },
     "emailList": {
-        "brevoApiKey": "",
+        "brevoApiKey": "admin123",
         "brevoListId": "",
         "popup": {
-            "enabled": true,
+            "enabled": false,
             "headline": "Inscreva-se na nossa Newsletter",
             "subheadline": "Receba os melhores conteúdos direto no seu e-mail.",
-            "triggerType": "scroll",
+            "triggerType": "delay",
             "triggerValue": 20,
             "showOnce": false
         },

@@ -1,15 +1,17 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import Sidebar from '../../components/Sidebar.astro';
-import EmailInlineBanner from '../../plugins/email-list/EmailInlineBanner.astro';
-import AffiliateProducts from '../../plugins/affiliates/AffiliateProducts.astro';
-import PostSchemaPlugins from '../../plugins/_slots/PostSchemaPlugins.astro';
-import PostBottomPlugins from '../../plugins/_slots/PostBottomPlugins.astro';
-import PostAfterPlugins from '../../plugins/_slots/PostAfterPlugins.astro';
-import SocialShare from '../../plugins/social-share/SocialShare.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Sidebar from '../components/Sidebar.astro';
+import EmailInlineBanner from '../plugins/email-list/EmailInlineBanner.astro';
+import AffiliateProducts from '../plugins/affiliates/AffiliateProducts.astro';
+import PostSchemaPlugins from '../plugins/_slots/PostSchemaPlugins.astro';
+import PostBottomPlugins from '../plugins/_slots/PostBottomPlugins.astro';
+import PostAfterPlugins from '../plugins/_slots/PostAfterPlugins.astro';
+import SocialShare from '../plugins/social-share/SocialShare.astro';
 import { getCollection } from 'astro:content';
-import { readData } from '../../lib/readData';
-import { postUrl } from '../../lib/blogRoutes';
+import { readData } from '../lib/readData';
+import { postUrl } from '../lib/blogRoutes';
+import { RESERVED_ROOT_SEGMENTS } from '../lib/postSlug';
+
 const authorsData = readData('authors.json', []);
 
 const pluginsConfig = readData('pluginsConfig.json', {}) as any;
@@ -18,17 +20,18 @@ const inlineEnabled = inlineConfig?.enabled === true;
 const inlinePosition = Number(inlineConfig?.position ?? 3);
 
 export async function getStaticPaths() {
-  const siteConfig = (await import('../../lib/readData')).readData('siteConfig.json');
+  const siteConfig = (await import('../lib/readData')).readData('siteConfig.json') as { blogPrefix?: string };
   const prefix = siteConfig.blogPrefix ?? '';
-
-  // Só gera rotas em /blog/ se o prefix for "/blog"
-  if (prefix !== '/blog') return [];
+  /** Posts na raiz só quando não há prefixo /blog em siteConfig */
+  if (prefix !== '') return [];
 
   const posts = await getCollection('blog');
-  return posts.map((post) => ({
-    params: { slug: post.slug },
-    props: post,
-  }));
+  return posts
+    .filter((post) => !RESERVED_ROOT_SEGMENTS.has(post.slug))
+    .map((post) => ({
+      params: { slug: post.slug },
+      props: post,
+    }));
 }
 const post = Astro.props;
 const { Content } = await post.render();
@@ -103,7 +106,7 @@ const fullPostUrl = `${siteConfig.url || Astro.url.origin}${postUrl(post.slug)}`
           <Content />
         </div>
 
-        <!-- Email inline banner (injected by JS after nth paragraph) -->
+        <!-- Email inline banner -->
         {inlineEnabled && (
           <div id="email-inline-source" data-position={inlinePosition} style="display:none">
             <EmailInlineBanner />
@@ -142,7 +145,7 @@ const fullPostUrl = `${siteConfig.url || Astro.url.origin}${postUrl(post.slug)}`
           </div>
         </div>
 
-        <!-- Post after: related posts, comments, etc. -->
+        <!-- Post after: related posts -->
         <div class="mt-8">
           <PostAfterPlugins
             currentSlug={post.slug}
@@ -177,7 +180,6 @@ const fullPostUrl = `${siteConfig.url || Astro.url.origin}${postUrl(post.slug)}`
   </section>
 
   <script is:inline>
-  // Replace &nbsp; from Quill editor with normal spaces
   (function() {
     var postContent = document.querySelector('.post-content');
     if (!postContent) return;

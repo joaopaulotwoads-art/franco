@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Save, AlertCircle, Loader2, Image as ImageIcon, Link2, CheckCircle2 } from 'lucide-react';
 import { triggerToast } from './CmsToaster';
 import { githubApi } from '../../lib/adminApi';
 
@@ -176,6 +176,40 @@ export default function ConfigEditor() {
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* Estrutura de URL dos Posts */}
+            <div className="p-8 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                <h3 className="text-xl font-bold text-slate-900 mb-6 border-b border-slate-100 pb-4 flex items-center gap-2"><Link2 className="w-5 h-5 text-amber-600" /> Estrutura de URL dos Posts</h3>
+                <p className="text-sm text-slate-500 mb-4">Define como as URLs dos seus artigos serão exibidas no site.</p>
+                <div className="space-y-3">
+                    {[
+                        { value: '', label: 'URL Limpa', example: 'meusite.com/titulo-do-post', desc: 'Similar ao WordPress — sem prefixo' },
+                        { value: '/blog', label: 'Com /blog', example: 'meusite.com/blog/titulo-do-post', desc: 'Posts dentro da pasta /blog' },
+                    ].map(option => (
+                        <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setConfig({ ...config, blogPrefix: option.value })}
+                            className={`w-full text-left p-4 rounded-2xl border transition-all ${(config?.blogPrefix ?? '') === option.value ? 'border-violet-500 bg-violet-50/50 ring-1 ring-violet-500' : 'border-slate-100 hover:border-slate-200'}`}
+                        >
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="font-bold text-sm text-slate-800">{option.label}</p>
+                                    <p className="text-xs text-slate-400 mt-0.5">{option.desc}</p>
+                                    <p className="text-xs font-mono text-violet-500 mt-1 bg-violet-50 inline-block px-2 py-0.5 rounded">{option.example}</p>
+                                </div>
+                                {(config?.blogPrefix ?? '') === option.value && <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />}
+                            </div>
+                        </button>
+                    ))}
+                </div>
+                <div className="flex gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100 mt-4">
+                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-700 leading-relaxed font-medium">
+                        Alterar esta opção muda todas as URLs dos posts. Se o site já estiver indexado, configure <strong>redirects 301</strong> para evitar perda de SEO.
+                    </p>
                 </div>
             </div>
 
