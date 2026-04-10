@@ -101,6 +101,26 @@ async function writeWalkerFileGithub(
     return result.content.sha;
 }
 
+/**
+ * Em produção (Vercel), o filesystem é só o snapshot do deploy — leituras de dados do site
+ * têm de ir ao GitHub para refletir commits feitos pela API do CMS.
+ */
+async function readWalkerDataFile(
+    relPath: string,
+    isProd: boolean,
+    token: string,
+    owner: string,
+    repo: string,
+    fallbackEmpty: string,
+): Promise<string> {
+    if (isProd) {
+        const { content } = await readWalkerFileGithub(relPath, token, owner, repo);
+        if (content !== null && content !== '') return content;
+        return fallbackEmpty;
+    }
+    return readLocalFile(relPath).catch(() => fallbackEmpty);
+}
+
 /** Appends an import + component to a slot aggregator file */
 function appendToSlotAggregator(fileContent: string, importLine: string, componentLine: string): string {
     if (fileContent.includes(importLine)) return fileContent; // already present
@@ -130,7 +150,21 @@ const SLOT_FILES: Record<string, string> = {
 
 export const GET: APIRoute = async () => {
     try {
-        const localVersionsRaw = await readLocalFile('src/data/pluginVersions.json').catch(() => '{}');
+        const GITHUB_TOKEN = import.meta.env.GITHUB_TOKEN as string | undefined;
+        const GITHUB_OWNER = import.meta.env.GITHUB_OWNER as string | undefined;
+        const GITHUB_REPO = import.meta.env.GITHUB_REPO as string | undefined;
+        const isProd = !!(GITHUB_TOKEN && GITHUB_OWNER && GITHUB_REPO);
+
+        const localVersionsRaw = isProd
+            ? await readWalkerDataFile(
+                'src/data/pluginVersions.json',
+                true,
+                GITHUB_TOKEN!,
+                GITHUB_OWNER!,
+                GITHUB_REPO!,
+                '{}',
+            )
+            : await readLocalFile('src/data/pluginVersions.json').catch(() => '{}');
         const localVersions: Record<string, string> = JSON.parse(localVersionsRaw);
 
         let remoteRegistry: Record<string, { version: string; description: string }> = {};
@@ -266,9 +300,16 @@ export const POST: APIRoute = async ({ request }) => {
             }
         }
 
-        // 4. Update pluginVersions.json
+        // 4. Update pluginVersions.json (em prod: base = GitHub, não o disco do deploy)
         const versionsPath = 'src/data/pluginVersions.json';
-        const versionsRaw = await readLocalFile(versionsPath).catch(() => '{}');
+        const versionsRaw = await readWalkerDataFile(
+            versionsPath,
+            isProd,
+            GITHUB_TOKEN!,
+            GITHUB_OWNER!,
+            GITHUB_REPO!,
+            '{}',
+        );
         const versions: Record<string, string> = JSON.parse(versionsRaw);
         versions[plugin] = pluginJson.version;
 
@@ -288,7 +329,14 @@ export const POST: APIRoute = async ({ request }) => {
             // 5a. Merge configDefaults into pluginsConfig.json
             if (pluginJson.configDefaults && Object.keys(pluginJson.configDefaults).length > 0) {
                 const configPath = 'src/data/pluginsConfig.json';
-                const configRaw = await readLocalFile(configPath).catch(() => '{}');
+                const configRaw = await readWalkerDataFile(
+                    configPath,
+                    isProd,
+                    GITHUB_TOKEN!,
+                    GITHUB_OWNER!,
+                    GITHUB_REPO!,
+                    '{}',
+                );
                 const config: Record<string, any> = JSON.parse(configRaw);
                 for (const [key, val] of Object.entries(pluginJson.configDefaults as Record<string, any>)) {
                     if (!(key in config)) config[key] = val;
@@ -307,7 +355,14 @@ export const POST: APIRoute = async ({ request }) => {
 
             // 5b. Add entry to pluginRegistry.json
             const registryPath = 'src/data/pluginRegistry.json';
-            const regRaw = await readLocalFile(registryPath).catch(() => '[]');
+            const regRaw = await readWalkerDataFile(
+                registryPath,
+                isProd,
+                GITHUB_TOKEN!,
+                GITHUB_OWNER!,
+                GITHUB_REPO!,
+                '[]',
+            );
             const reg: any[] = JSON.parse(regRaw);
             if (!reg.find((r: any) => r.name === plugin)) {
                 reg.push({ name: plugin, ...pluginJson.hub });
