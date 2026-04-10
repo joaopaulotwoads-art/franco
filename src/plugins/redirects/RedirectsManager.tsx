@@ -158,7 +158,7 @@ export default function RedirectsManager() {
                   value={form.to}
                   onChange={e => setForm(f => ({ ...f, to: e.target.value }))}
                   className={inputClass}
-                  placeholder="/url-antiga ou https://..."
+                  placeholder="/blog/artigo-novo ou https://..."
                 />
               </div>
             </div>
@@ -285,12 +285,13 @@ export default function RedirectsManager() {
 
       {/* Info */}
       <div className="bg-blue-50 rounded-2xl border border-blue-200 p-5">
-        <p className="text-xs font-bold text-blue-700 uppercase tracking-widest mb-2">Para que serve</p>
+        <p className="text-xs font-bold text-blue-700 uppercase tracking-widest mb-2">Como funciona</p>
         <ul className="space-y-1 text-sm text-blue-800">
-          <li>• Use quando renomear ou mover uma página — quem acessar o endereço antigo chega ao novo automaticamente</li>
-          <li>• Escolha <strong>301</strong> quando a mudança for definitiva (ex: renomeou um artigo)</li>
-          <li>• Escolha <strong>302</strong> quando for temporário (ex: página em manutenção ou promoção por tempo limitado)</li>
-          <li>• No campo <strong>De</strong>, coloque o endereço antigo. No campo <strong>Para</strong>, o endereço novo</li>
+          <li>• Redirects são processados via middleware Astro antes de qualquer rota</li>
+          <li>• Use 301 para redirects permanentes (SEO friendly — migração de URLs)</li>
+          <li>• Use 302 para redirects temporários (campanhas, testes A/B)</li>
+          <li>• O campo "De" aceita caminhos relativos: <code className="font-mono bg-blue-100 px-1 rounded">/artigo-antigo</code></li>
+          <li>• O campo "Para" aceita caminhos relativos ou URLs absolutas</li>
         </ul>
       </div>
     </div>
