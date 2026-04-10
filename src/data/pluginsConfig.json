@@ -1,19 +1,14 @@
 {
-    "ai": {
-        "provider": "openai",
-        "apiKey": "",
-        "pexelsApiKey": ""
-    },
     "emailList": {
-        "brevoApiKey": "admin123",
+        "brevoApiKey": "",
         "brevoListId": "",
         "popup": {
             "enabled": true,
-            "headline": "Não perca nenhum artigo!",
+            "headline": "Inscreva-se na nossa Newsletter",
             "subheadline": "Receba os melhores conteúdos direto no seu e-mail.",
             "triggerType": "scroll",
-            "triggerValue": 15,
-            "showOnce": true
+            "triggerValue": 20,
+            "showOnce": false
         },
         "sidebar": {
             "enabled": true,
@@ -21,7 +16,7 @@
             "subheadline": "Junte-se a nossos leitores!"
         },
         "inline": {
-            "enabled": false,
+            "enabled": true,
             "headline": "Gostando do conteúdo?",
             "subheadline": "Receba artigos como este direto no seu e-mail.",
             "position": 3
