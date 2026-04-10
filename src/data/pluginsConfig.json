@@ -3,5 +3,29 @@
         "provider": "openai",
         "apiKey": "",
         "pexelsApiKey": ""
+    },
+    "emailList": {
+        "brevoApiKey": "admin123",
+        "brevoListId": "",
+        "popup": {
+            "enabled": true,
+            "headline": "Não perca nenhum artigo!",
+            "subheadline": "Receba os melhores conteúdos direto no seu e-mail.",
+            "triggerType": "scroll",
+            "triggerValue": 15,
+            "showOnce": true
+        },
+        "sidebar": {
+            "enabled": true,
+            "headline": "Newsletter",
+            "subheadline": "Junte-se a nossos leitores!"
+        },
+        "inline": {
+            "enabled": false,
+            "headline": "Gostando do conteúdo?",
+            "subheadline": "Receba artigos como este direto no seu e-mail.",
+            "position": 3
+        },
+        "sequences": []
     }
 }
