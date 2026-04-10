@@ -1,11 +1,11 @@
 [
   {
-    "name": "email-list",
-    "label": "Email List",
-    "description": "Popup, banner inline e sequências de email com Brevo.",
-    "icon": "Mail",
-    "color": "text-purple-600",
-    "bg": "bg-purple-50",
-    "href": "/admin/email-list"
+    "name": "adsense",
+    "label": "Google AdSense",
+    "description": "Monetize seu blog com anúncios automáticos do Google AdSense.",
+    "icon": "DollarSign",
+    "color": "text-green-600",
+    "bg": "bg-green-50",
+    "href": "/admin/adsense"
   }
 ]
