@@ -1,8 +1,8 @@
 ---
 title: "O que é Física Quântica na Prática"
-description: "s"
+description: "Entenda como a física quântica funciona na prática e como ela impacta diretamente a realidade que você vivencia todos os dias."
 pubDate: "2026-04-09"
-heroImage: ""
+heroImage: "/uploads/1775786226341-blog-cover.webp"
 category: "Geral"
 author: "Ana Paula Franco"
 draft: false
