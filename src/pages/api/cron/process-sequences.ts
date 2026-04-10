@@ -33,7 +33,7 @@ export const GET: APIRoute = async ({ request }) => {
         const config = readPluginsConfig();
         const sequences: Array<{ subject: string; body: string; delayDays: number }> =
             config?.emailList?.sequences ?? [];
-        const apiKey: string = config?.emailList?.brevoApiKey ?? '';
+        const apiKey: string = process.env.BREVO_API_KEY || config?.emailList?.brevoApiKey || '';
 
         if (sequences.length === 0) return json({ processed: 0, sent: 0, failed: 0, reason: 'no_sequences' });
         if (!apiKey) return json({ processed: 0, sent: 0, failed: 0, reason: 'no_api_key' });

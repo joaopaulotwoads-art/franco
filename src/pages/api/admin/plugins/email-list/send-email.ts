@@ -37,9 +37,9 @@ export const POST: APIRoute = async ({ request }) => {
         }
 
         const config = readPluginsConfig();
-        const apiKey = config?.emailList?.brevoApiKey;
+        const apiKey = process.env.BREVO_API_KEY || config?.emailList?.brevoApiKey;
         if (!apiKey) {
-            return json({ success: false, message: 'API Key do Brevo não configurada.' }, 400);
+            return json({ success: false, message: 'API Key do Brevo não configurada (defina BREVO_API_KEY na Vercel).' }, 400);
         }
 
         const siteConfig = readDataFile<any>('siteConfig.json', {});

@@ -82,7 +82,8 @@ export default function SettingsEmailList() {
             const updated = {
                 ...fullConfig,
                 emailList: {
-                    brevoApiKey: brevoApiKey.trim(),
+                    // Nunca persistir segredo em arquivo versionado (GitHub Push Protection).
+                    brevoApiKey: '',
                     brevoListId: brevoListId.trim(),
                     popup: {
                         enabled: popupEnabled,
@@ -193,7 +194,8 @@ export default function SettingsEmailList() {
                             </button>
                         </div>
                         <p className="text-xs text-slate-400 mt-1 ml-1">
-                            Encontre em Brevo → Configurações → API Keys.
+                            Encontre em Brevo → Configurações → API Keys. A chave não é salva no repositório; configure
+                            <code className="mx-1">BREVO_API_KEY</code> na Vercel.
                         </p>
                     </div>
 

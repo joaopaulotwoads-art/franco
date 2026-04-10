@@ -7,7 +7,7 @@ import EmailSequenceEditor from '../../plugins/email-list/EmailSequenceEditor';
 import { readData } from '../../lib/readData';
 
 const pluginsConfig = readData<any>('pluginsConfig.json', {});
-const isBrevoConfigured = !!(pluginsConfig?.emailList?.brevoApiKey);
+const isBrevoConfigured = !!(import.meta.env.BREVO_API_KEY || pluginsConfig?.emailList?.brevoApiKey);
 const defaultTab = 'leads';
 ---
 

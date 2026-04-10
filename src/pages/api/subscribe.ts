@@ -103,9 +103,10 @@ export const POST: APIRoute = async ({ request }) => {
         // Sincroniza com Brevo se configurado
         const config = readPluginsConfig();
         const emailListConfig = config?.emailList;
-        if (emailListConfig?.brevoApiKey && emailListConfig?.brevoListId) {
+        const brevoApiKey = process.env.BREVO_API_KEY || emailListConfig?.brevoApiKey;
+        if (brevoApiKey && emailListConfig?.brevoListId) {
             await addContact(
-                emailListConfig.brevoApiKey,
+                brevoApiKey,
                 email,
                 Number(emailListConfig.brevoListId),
                 name || undefined
