@@ -1,11 +1,11 @@
 [
   {
-    "name": "adsense",
-    "label": "Google AdSense",
-    "description": "Monetize seu blog com anúncios automáticos do Google AdSense.",
-    "icon": "DollarSign",
-    "color": "text-green-600",
-    "bg": "bg-green-50",
-    "href": "/admin/adsense"
+    "name": "updater",
+    "label": "Atualizações",
+    "description": "Atualize template e plugins com um clique.",
+    "icon": "RefreshCw",
+    "color": "text-sky-600",
+    "bg": "bg-sky-50",
+    "href": "/admin/system-updates"
   }
 ]
