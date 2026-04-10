@@ -1,11 +1,11 @@
 [
   {
-    "name": "ai-generator",
-    "label": "AI Generator",
-    "description": "Gere posts completos com IA a partir de um título ou tema.",
-    "icon": "Sparkles",
-    "color": "text-pink-600",
-    "bg": "bg-pink-50",
-    "href": "/admin/ai"
+    "name": "email-list",
+    "label": "Email List",
+    "description": "Popup, banner inline e sequências de email com Brevo.",
+    "icon": "Mail",
+    "color": "text-purple-600",
+    "bg": "bg-purple-50",
+    "href": "/admin/email-list"
   }
 ]
