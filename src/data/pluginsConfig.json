@@ -1,5 +1,5 @@
 {
-    "adsense": {
-        "publisherId": ""
+    "googleAnalytics": {
+        "measurementId": ""
     }
 }
