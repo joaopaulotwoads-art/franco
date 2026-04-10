@@ -1,7 +1,7 @@
 {
-    "searchConsole": {
-        "verificationTag": "",
-        "siteUrl": "",
-        "serviceAccountJson": ""
+    "ai": {
+        "provider": "openai",
+        "apiKey": "",
+        "pexelsApiKey": ""
     }
 }
