@@ -1,11 +1,11 @@
 [
   {
-    "name": "redirects",
-    "label": "Redirects",
-    "description": "Crie e gerencie redirects 301/302 sem editar código.",
-    "icon": "ArrowRight",
-    "color": "text-amber-600",
-    "bg": "bg-amber-50",
-    "href": "/admin/redirects"
+    "name": "email-list",
+    "label": "Email List",
+    "description": "Popup, banner inline e sequências de email com Brevo.",
+    "icon": "Mail",
+    "color": "text-purple-600",
+    "bg": "bg-purple-50",
+    "href": "/admin/email-list"
   }
 ]
