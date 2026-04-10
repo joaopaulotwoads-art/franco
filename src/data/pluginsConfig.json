@@ -1,11 +1,5 @@
 {
-    "seo": {
-        "enabled": true,
-        "orgName": "",
-        "orgLogo": "",
-        "sameAs": [],
-        "articleSchema": true,
-        "breadcrumbSchema": true,
-        "websiteSchema": true
+    "googleAnalytics": {
+        "measurementId": ""
     }
 }
