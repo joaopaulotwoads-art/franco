@@ -1,26 +1,11 @@
 {
-    "emailList": {
-        "brevoApiKey": "",
-        "brevoListId": "",
-        "popup": {
-            "enabled": true,
-            "headline": "Inscreva-se na nossa Newsletter",
-            "subheadline": "Receba os melhores conteúdos direto no seu e-mail.",
-            "triggerType": "scroll",
-            "triggerValue": 20,
-            "showOnce": false
-        },
-        "sidebar": {
-            "enabled": true,
-            "headline": "Newsletter",
-            "subheadline": "Junte-se a nossos leitores!"
-        },
-        "inline": {
-            "enabled": true,
-            "headline": "Gostando do conteúdo?",
-            "subheadline": "Receba artigos como este direto no seu e-mail.",
-            "position": 3
-        },
-        "sequences": []
+    "seo": {
+        "enabled": true,
+        "orgName": "",
+        "orgLogo": "",
+        "sameAs": [],
+        "articleSchema": true,
+        "breadcrumbSchema": true,
+        "websiteSchema": true
     }
 }
