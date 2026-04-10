@@ -28,6 +28,26 @@ async function fetchFromPluginsRepo(path: string, _token?: string): Promise<stri
     return Buffer.from(data.content, 'base64').toString('utf-8');
 }
 
+function cmsPluginsLocalRoots(): string[] {
+    return [
+        nodePath.resolve(PROJECT_ROOT, '../cms-plugins'),
+        nodePath.resolve(PROJECT_ROOT, '../../cms-plugins'),
+    ];
+}
+
+async function readFromCmsPluginsRepo(relPath: string): Promise<string> {
+    const normalized = relPath.replace(/\\/g, '/');
+    for (const root of cmsPluginsLocalRoots()) {
+        const abs = nodePath.join(root, normalized);
+        try {
+            return await fs.readFile(abs, 'utf-8');
+        } catch {
+            // try next location
+        }
+    }
+    return fetchFromPluginsRepo(normalized);
+}
+
 async function readLocalFile(relPath: string): Promise<string> {
     return fs.readFile(nodePath.join(PROJECT_ROOT, relPath), 'utf-8');
 }
@@ -196,15 +216,17 @@ export const POST: APIRoute = async ({ request }) => {
             } catch { /* no paths.json — skip slots/dest */ }
         } else {
             try {
-                const cmsRoot = nodePath.resolve(PROJECT_ROOT, '../../cms-plugins');
-                const raw = await fs.readFile(nodePath.join(cmsRoot, 'plugins', plugin, 'plugin.json'), 'utf-8');
+                const raw = await readFromCmsPluginsRepo(`plugins/${plugin}/plugin.json`);
                 pluginJson = JSON.parse(raw);
                 try {
-                    const pathsRaw = await fs.readFile(nodePath.join(cmsRoot, 'templates', 'walker', 'paths.json'), 'utf-8');
+                    const pathsRaw = await readFromCmsPluginsRepo(`templates/${THEME_NAME}/paths.json`);
                     walkerPaths = JSON.parse(pathsRaw);
                 } catch { /* no paths.json */ }
-            } catch {
-                return new Response(JSON.stringify({ error: `plugin.json não encontrado para "${plugin}" no cms-plugins local` }), { status: 404 });
+            } catch (e: any) {
+                return new Response(
+                    JSON.stringify({ error: `Não foi possível ler plugin "${plugin}" (local nem ${PLUGINS_REPO}): ${e?.message ?? e}` }),
+                    { status: 404 },
+                );
             }
         }
 
@@ -232,13 +254,10 @@ export const POST: APIRoute = async ({ request }) => {
                     `CMS: ${action} plugin ${plugin} — ${file.src}`,
                 );
             } else {
-                const cmsRoot = nodePath.resolve(PROJECT_ROOT, '../../cms-plugins');
-                const overrideAbs = nodePath.join(cmsRoot, overridePath);
-                const srcAbs = nodePath.join(cmsRoot, 'plugins', plugin, file.src);
                 try {
-                    content = await fs.readFile(overrideAbs, 'utf-8');
+                    content = await readFromCmsPluginsRepo(overridePath);
                 } catch {
-                    content = await fs.readFile(srcAbs, 'utf-8');
+                    content = await readFromCmsPluginsRepo(`plugins/${plugin}/${file.src}`);
                 }
                 await writeLocalFile(file.dest, content);
             }
@@ -255,8 +274,7 @@ export const POST: APIRoute = async ({ request }) => {
                     `CMS: ${action} plugin ${plugin} — ${page.src}`,
                 );
             } else {
-                const cmsRoot = nodePath.resolve(PROJECT_ROOT, '../../cms-plugins');
-                content = await fs.readFile(nodePath.join(cmsRoot, 'plugins', plugin, page.src), 'utf-8');
+                content = await readFromCmsPluginsRepo(`plugins/${plugin}/${page.src}`);
                 await writeLocalFile(page.dest, content);
             }
         }
