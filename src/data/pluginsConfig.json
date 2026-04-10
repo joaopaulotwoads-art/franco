@@ -3,8 +3,8 @@
         "measurementId": ""
     },
     "emailList": {
-        "brevoApiKey": "",
-        "brevoListId": "",
+        "brevoApiKey": "https://paulafranco.com.br/reprograma-o-mental-funciona",
+        "brevoListId": "5",
         "popup": {
             "enabled": false,
             "headline": "Não perca nenhum artigo!",
