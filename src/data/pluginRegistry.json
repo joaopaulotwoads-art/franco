@@ -1,11 +1,11 @@
 [
   {
-    "name": "search-console",
-    "label": "Search Console",
-    "description": "Veja impressões, cliques e posição média do Google Search Console.",
-    "icon": "Globe",
-    "color": "text-cyan-600",
-    "bg": "bg-cyan-50",
-    "href": "/admin/search-console"
+    "name": "ai-generator",
+    "label": "AI Generator",
+    "description": "Gere posts completos com IA a partir de um título ou tema.",
+    "icon": "Sparkles",
+    "color": "text-pink-600",
+    "bg": "bg-pink-50",
+    "href": "/admin/ai"
   }
 ]
