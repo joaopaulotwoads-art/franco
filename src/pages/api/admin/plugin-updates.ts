@@ -2,7 +2,9 @@ import type { APIRoute } from 'astro';
 import fs from 'node:fs/promises';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PLUGINS_REPO } from '../../../lib/templateConfig';
+import { PLUGINS_REPO, TEMPLATE_REPO } from '../../../lib/templateConfig';
+
+const THEME_NAME = TEMPLATE_REPO.split('/').pop() || 'walker';
 
 export const prerender = false;
 
@@ -24,31 +26,6 @@ async function fetchFromPluginsRepo(path: string, _token?: string): Promise<stri
     if (!res.ok) throw new Error(`Erro ao buscar ${path} do cms-plugins: ${res.status}`);
     const data = await res.json() as { content: string };
     return Buffer.from(data.content, 'base64').toString('utf-8');
-}
-
-/** Onde o clone local de cms-plugins pode estar (desenvolvimento offline). */
-function cmsPluginsLocalRoots(): string[] {
-    return [
-        nodePath.resolve(PROJECT_ROOT, '../cms-plugins'),
-        nodePath.resolve(PROJECT_ROOT, '../../cms-plugins'),
-    ];
-}
-
-/**
- * Lê um ficheiro do ecossistema cms-plugins: tenta clones locais, depois GitHub (público).
- * Assim o painel de atualizações funciona em dev sem pasta cms-plugins ao lado do projeto.
- */
-async function readFromCmsPluginsRepo(relPath: string): Promise<string> {
-    const normalized = relPath.replace(/\\/g, '/');
-    for (const root of cmsPluginsLocalRoots()) {
-        const abs = nodePath.join(root, normalized);
-        try {
-            return await fs.readFile(abs, 'utf-8');
-        } catch {
-            /* tenta próximo root ou remoto */
-        }
-    }
-    return fetchFromPluginsRepo(normalized);
 }
 
 async function readLocalFile(relPath: string): Promise<string> {
@@ -101,26 +78,6 @@ async function writeWalkerFileGithub(
     return result.content.sha;
 }
 
-/**
- * Em produção (Vercel), o filesystem é só o snapshot do deploy — leituras de dados do site
- * têm de ir ao GitHub para refletir commits feitos pela API do CMS.
- */
-async function readWalkerDataFile(
-    relPath: string,
-    isProd: boolean,
-    token: string,
-    owner: string,
-    repo: string,
-    fallbackEmpty: string,
-): Promise<string> {
-    if (isProd) {
-        const { content } = await readWalkerFileGithub(relPath, token, owner, repo);
-        if (content !== null && content !== '') return content;
-        return fallbackEmpty;
-    }
-    return readLocalFile(relPath).catch(() => fallbackEmpty);
-}
-
 /** Appends an import + component to a slot aggregator file */
 function appendToSlotAggregator(fileContent: string, importLine: string, componentLine: string): string {
     if (fileContent.includes(importLine)) return fileContent; // already present
@@ -152,19 +109,20 @@ export const GET: APIRoute = async () => {
     try {
         const GITHUB_TOKEN = import.meta.env.GITHUB_TOKEN as string | undefined;
         const GITHUB_OWNER = import.meta.env.GITHUB_OWNER as string | undefined;
-        const GITHUB_REPO = import.meta.env.GITHUB_REPO as string | undefined;
+        const GITHUB_REPO  = import.meta.env.GITHUB_REPO  as string | undefined;
         const isProd = !!(GITHUB_TOKEN && GITHUB_OWNER && GITHUB_REPO);
 
-        const localVersionsRaw = isProd
-            ? await readWalkerDataFile(
-                'src/data/pluginVersions.json',
-                true,
-                GITHUB_TOKEN!,
-                GITHUB_OWNER!,
-                GITHUB_REPO!,
-                '{}',
-            )
-            : await readLocalFile('src/data/pluginVersions.json').catch(() => '{}');
+        let localVersionsRaw = '{}';
+        if (isProd) {
+            try {
+                const { content } = await readWalkerFileGithub(
+                    'src/data/pluginVersions.json', GITHUB_TOKEN!, GITHUB_OWNER!, GITHUB_REPO!
+                );
+                if (content) localVersionsRaw = content;
+            } catch { /* fallback to empty */ }
+        } else {
+            localVersionsRaw = await readLocalFile('src/data/pluginVersions.json').catch(() => '{}');
+        }
         const localVersions: Record<string, string> = JSON.parse(localVersionsRaw);
 
         let remoteRegistry: Record<string, { version: string; description: string }> = {};
@@ -224,7 +182,7 @@ export const POST: APIRoute = async ({ request }) => {
 
         const isProd = !!(GITHUB_TOKEN && GITHUB_OWNER && GITHUB_REPO);
 
-        // 1. Fetch plugin.json + templates/walker/paths.json from cms-plugins
+        // 1. Fetch plugin.json + templates/${THEME_NAME}/paths.json from cms-plugins
         let pluginJson: any;
         let walkerPaths: Record<string, any> = {};
 
@@ -233,21 +191,20 @@ export const POST: APIRoute = async ({ request }) => {
             const raw = await fetchFromPluginsRepo(`plugins/${plugin}/plugin.json`);
             pluginJson = JSON.parse(raw);
             try {
-                const pathsRaw = await fetchFromPluginsRepo('templates/walker/paths.json');
+                const pathsRaw = await fetchFromPluginsRepo(`templates/${THEME_NAME}/paths.json`);
                 walkerPaths = JSON.parse(pathsRaw);
             } catch { /* no paths.json — skip slots/dest */ }
         } else {
             try {
-                const raw = await readFromCmsPluginsRepo(`plugins/${plugin}/plugin.json`);
+                const cmsRoot = nodePath.resolve(PROJECT_ROOT, '../../cms-plugins');
+                const raw = await fs.readFile(nodePath.join(cmsRoot, 'plugins', plugin, 'plugin.json'), 'utf-8');
                 pluginJson = JSON.parse(raw);
                 try {
-                    const pathsRaw = await readFromCmsPluginsRepo('templates/walker/paths.json');
+                    const pathsRaw = await fs.readFile(nodePath.join(cmsRoot, 'templates', 'walker', 'paths.json'), 'utf-8');
                     walkerPaths = JSON.parse(pathsRaw);
                 } catch { /* no paths.json */ }
-            } catch (e: any) {
-                return new Response(JSON.stringify({
-                    error: `Não foi possível ler plugin "${plugin}" (local nem ${PLUGINS_REPO}): ${e?.message ?? e}`,
-                }), { status: 404 });
+            } catch {
+                return new Response(JSON.stringify({ error: `plugin.json não encontrado para "${plugin}" no cms-plugins local` }), { status: 404 });
             }
         }
 
@@ -260,7 +217,7 @@ export const POST: APIRoute = async ({ request }) => {
         // 2. Copy plugin files
         for (const file of fileEntries) {
             // Check template override first
-            const overridePath = `templates/walker/${plugin}/${file.src}`;
+            const overridePath = `templates/${THEME_NAME}/${plugin}/${file.src}`;
             let content: string | null = null;
 
             if (isProd) {
@@ -275,10 +232,13 @@ export const POST: APIRoute = async ({ request }) => {
                     `CMS: ${action} plugin ${plugin} — ${file.src}`,
                 );
             } else {
+                const cmsRoot = nodePath.resolve(PROJECT_ROOT, '../../cms-plugins');
+                const overrideAbs = nodePath.join(cmsRoot, overridePath);
+                const srcAbs = nodePath.join(cmsRoot, 'plugins', plugin, file.src);
                 try {
-                    content = await readFromCmsPluginsRepo(overridePath);
+                    content = await fs.readFile(overrideAbs, 'utf-8');
                 } catch {
-                    content = await readFromCmsPluginsRepo(`plugins/${plugin}/${file.src}`);
+                    content = await fs.readFile(srcAbs, 'utf-8');
                 }
                 await writeLocalFile(file.dest, content);
             }
@@ -295,21 +255,23 @@ export const POST: APIRoute = async ({ request }) => {
                     `CMS: ${action} plugin ${plugin} — ${page.src}`,
                 );
             } else {
-                content = await readFromCmsPluginsRepo(`plugins/${plugin}/${page.src}`);
+                const cmsRoot = nodePath.resolve(PROJECT_ROOT, '../../cms-plugins');
+                content = await fs.readFile(nodePath.join(cmsRoot, 'plugins', plugin, page.src), 'utf-8');
                 await writeLocalFile(page.dest, content);
             }
         }
 
-        // 4. Update pluginVersions.json (em prod: base = GitHub, não o disco do deploy)
+        // 4. Update pluginVersions.json
         const versionsPath = 'src/data/pluginVersions.json';
-        const versionsRaw = await readWalkerDataFile(
-            versionsPath,
-            isProd,
-            GITHUB_TOKEN!,
-            GITHUB_OWNER!,
-            GITHUB_REPO!,
-            '{}',
-        );
+        let versionsRaw = '{}';
+        if (isProd) {
+            try {
+                const { content } = await readWalkerFileGithub(versionsPath, GITHUB_TOKEN!, GITHUB_OWNER!, GITHUB_REPO!);
+                if (content) versionsRaw = content;
+            } catch { /* fallback */ }
+        } else {
+            versionsRaw = await readLocalFile(versionsPath).catch(() => '{}');
+        }
         const versions: Record<string, string> = JSON.parse(versionsRaw);
         versions[plugin] = pluginJson.version;
 
@@ -329,14 +291,15 @@ export const POST: APIRoute = async ({ request }) => {
             // 5a. Merge configDefaults into pluginsConfig.json
             if (pluginJson.configDefaults && Object.keys(pluginJson.configDefaults).length > 0) {
                 const configPath = 'src/data/pluginsConfig.json';
-                const configRaw = await readWalkerDataFile(
-                    configPath,
-                    isProd,
-                    GITHUB_TOKEN!,
-                    GITHUB_OWNER!,
-                    GITHUB_REPO!,
-                    '{}',
-                );
+                let configRaw = '{}';
+                if (isProd) {
+                    try {
+                        const { content } = await readWalkerFileGithub(configPath, GITHUB_TOKEN!, GITHUB_OWNER!, GITHUB_REPO!);
+                        if (content) configRaw = content;
+                    } catch { /* fallback */ }
+                } else {
+                    configRaw = await readLocalFile(configPath).catch(() => '{}');
+                }
                 const config: Record<string, any> = JSON.parse(configRaw);
                 for (const [key, val] of Object.entries(pluginJson.configDefaults as Record<string, any>)) {
                     if (!(key in config)) config[key] = val;
@@ -355,14 +318,15 @@ export const POST: APIRoute = async ({ request }) => {
 
             // 5b. Add entry to pluginRegistry.json
             const registryPath = 'src/data/pluginRegistry.json';
-            const regRaw = await readWalkerDataFile(
-                registryPath,
-                isProd,
-                GITHUB_TOKEN!,
-                GITHUB_OWNER!,
-                GITHUB_REPO!,
-                '[]',
-            );
+            let regRaw = '[]';
+            if (isProd) {
+                try {
+                    const { content } = await readWalkerFileGithub(registryPath, GITHUB_TOKEN!, GITHUB_OWNER!, GITHUB_REPO!);
+                    if (content) regRaw = content;
+                } catch { /* fallback */ }
+            } else {
+                regRaw = await readLocalFile(registryPath).catch(() => '[]');
+            }
             const reg: any[] = JSON.parse(regRaw);
             if (!reg.find((r: any) => r.name === plugin)) {
                 reg.push({ name: plugin, ...pluginJson.hub });
