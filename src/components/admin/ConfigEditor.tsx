@@ -118,6 +118,17 @@ export default function ConfigEditor() {
                                 <label className={labelClass}>Nome do Site / Empresa</label>
                                 <input type="text" value={config?.name || ''} onChange={e => setConfig({ ...config, name: e.target.value })} className={inputClass} />
                             </div>
+                            <div>
+                                <label className={labelClass}>Descrição (widget lateral &quot;Sobre&quot;)</label>
+                                <textarea
+                                    rows={3}
+                                    placeholder="Breve texto que aparece abaixo do nome na sidebar."
+                                    value={config?.description || ''}
+                                    onChange={e => setConfig({ ...config, description: e.target.value })}
+                                    className={`${inputClass} resize-y`}
+                                />
+                                <p className="text-xs text-slate-400 mt-1.5 ml-1">É diferente da &quot;Descrição Padrão&quot; em SEO Global (meta description).</p>
+                            </div>
                             {/* Preset Themes */}
                             <div>
                                 <label className={labelClass}>Temas Prontos</label>
