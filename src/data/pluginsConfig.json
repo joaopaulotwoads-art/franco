@@ -24,6 +24,12 @@
             "subheadline": "Receba artigos como este direto no seu e-mail.",
             "position": 3
         },
-        "sequences": []
+        "sequences": [
+            {
+                "subject": "olá tudo bem",
+                "body": "olá tudo bem",
+                "delayDays": 1
+            }
+        ]
     }
 }
