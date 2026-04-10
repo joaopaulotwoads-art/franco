@@ -1,11 +1,11 @@
 [
   {
-    "name": "email-list",
-    "label": "Email List",
-    "description": "Popup, banner inline e sequências de email com Brevo.",
-    "icon": "Mail",
-    "color": "text-purple-600",
-    "bg": "bg-purple-50",
-    "href": "/admin/email-list"
+    "name": "seo",
+    "label": "SEO Toolkit",
+    "description": "Schema markup automático (Article, Breadcrumb, WebSite) e score SEO.",
+    "icon": "SearchCheck",
+    "color": "text-teal-600",
+    "bg": "bg-teal-50",
+    "href": "/admin/seo"
   }
 ]
