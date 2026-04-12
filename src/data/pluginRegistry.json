@@ -1,11 +1,11 @@
 [
   {
-    "name": "google-analytics",
-    "label": "Google Analytics",
-    "description": "Rastreie visitas e comportamento dos leitores com GA4.",
-    "icon": "BarChart3",
-    "color": "text-orange-600",
-    "bg": "bg-orange-50",
-    "href": "/admin/analytics"
+    "name": "seo",
+    "label": "SEO Toolkit",
+    "description": "Schema markup automático (Article, Breadcrumb, WebSite) e score SEO.",
+    "icon": "SearchCheck",
+    "color": "text-teal-600",
+    "bg": "bg-teal-50",
+    "href": "/admin/seo"
   }
 ]
