@@ -1,5 +1,32 @@
 [
   {
+    "name": "google-analytics",
+    "label": "Google Analytics",
+    "description": "Rastreie visitas e comportamento dos leitores com GA4.",
+    "icon": "BarChart3",
+    "color": "text-orange-600",
+    "bg": "bg-orange-50",
+    "href": "/admin/analytics"
+  },
+  {
+    "name": "updater",
+    "label": "Atualizações",
+    "description": "Atualize template e plugins com um clique.",
+    "icon": "RefreshCw",
+    "color": "text-sky-600",
+    "bg": "bg-sky-50",
+    "href": "/admin/system-updates"
+  },
+  {
+    "name": "email-list",
+    "label": "Email List",
+    "description": "Popup, banner inline e sequências de email com Brevo.",
+    "icon": "Mail",
+    "color": "text-purple-600",
+    "bg": "bg-purple-50",
+    "href": "/admin/email-list"
+  },
+  {
     "name": "seo",
     "label": "SEO Toolkit",
     "description": "Schema markup automático (Article, Breadcrumb, WebSite) e score SEO.",
@@ -7,5 +34,23 @@
     "color": "text-teal-600",
     "bg": "bg-teal-50",
     "href": "/admin/seo"
+  },
+  {
+    "name": "search-console",
+    "label": "Search Console",
+    "description": "Veja impressões, cliques e posição média do Google Search Console.",
+    "icon": "Globe",
+    "color": "text-cyan-600",
+    "bg": "bg-cyan-50",
+    "href": "/admin/search-console"
+  },
+  {
+    "name": "redirects",
+    "label": "Redirects",
+    "description": "Crie e gerencie redirects 301/302 sem editar código.",
+    "icon": "ArrowRight",
+    "color": "text-amber-600",
+    "bg": "bg-amber-50",
+    "href": "/admin/redirects"
   }
 ]

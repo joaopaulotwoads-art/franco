@@ -4,6 +4,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 import LeadsPanel from '../../plugins/email-list/LeadsPanel';
 import SettingsEmailList from '../../plugins/email-list/SettingsEmailList';
 import EmailSequenceEditor from '../../plugins/email-list/EmailSequenceEditor';
+import BroadcastPanel from '../../plugins/email-list/BroadcastPanel';
 import { readData } from '../../lib/readData';
 
 const pluginsConfig = readData<any>('pluginsConfig.json', {});
@@ -35,6 +36,13 @@ const defaultTab = 'leads';
                 ⚙️ Configurações{!isBrevoConfigured && <span class="ml-1.5 w-2 h-2 bg-amber-400 rounded-full inline-block align-middle"></span>}
             </button>
             <button
+                id="tab-broadcast"
+                onclick="showTab('broadcast')"
+                class="px-4 py-2 rounded-lg text-sm font-semibold transition-all text-slate-600 hover:text-slate-900"
+            >
+                📣 Broadcast
+            </button>
+            <button
                 id="tab-sequences"
                 onclick="showTab('sequences')"
                 class="px-4 py-2 rounded-lg text-sm font-semibold transition-all text-slate-600 hover:text-slate-900"
@@ -50,6 +58,9 @@ const defaultTab = 'leads';
     <div id="panel-settings" class="hidden">
         <SettingsEmailList client:load />
     </div>
+    <div id="panel-broadcast" class="hidden">
+        <BroadcastPanel client:load />
+    </div>
     <div id="panel-sequences" class="hidden">
         <EmailSequenceEditor client:load />
     </div>
@@ -60,11 +71,13 @@ function showTab(tab) {
     var panels = {
         leads: document.getElementById('panel-leads'),
         settings: document.getElementById('panel-settings'),
+        broadcast: document.getElementById('panel-broadcast'),
         sequences: document.getElementById('panel-sequences'),
     };
     var tabs = {
         leads: document.getElementById('tab-leads'),
         settings: document.getElementById('tab-settings'),
+        broadcast: document.getElementById('tab-broadcast'),
         sequences: document.getElementById('tab-sequences'),
     };
 

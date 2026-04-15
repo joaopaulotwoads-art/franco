@@ -10,6 +10,7 @@
 import type { APIRoute } from 'astro';
 import { readPluginsConfig, readDataFile, readFileFromRepo, writeFileToRepo } from '../../../plugins/_server';
 import { sendTransactionalEmail } from '../../../plugins/email-list/brevo-api';
+import { createUnsubscribeToken, renderEmailHtml } from '../../../plugins/email-list/render-email-html';
 
 export const prerender = false;
 
@@ -33,7 +34,7 @@ export const GET: APIRoute = async ({ request }) => {
         const config = readPluginsConfig();
         const sequences: Array<{ subject: string; body: string; delayDays: number }> =
             config?.emailList?.sequences ?? [];
-        const apiKey: string = process.env.BREVO_API_KEY || config?.emailList?.brevoApiKey || '';
+        const apiKey: string = import.meta.env.BREVO_API_KEY || process.env.BREVO_API_KEY || config?.emailList?.brevoApiKey || '';
 
         if (sequences.length === 0) return json({ processed: 0, sent: 0, failed: 0, reason: 'no_sequences' });
         if (!apiKey) return json({ processed: 0, sent: 0, failed: 0, reason: 'no_api_key' });
@@ -41,12 +42,15 @@ export const GET: APIRoute = async ({ request }) => {
         const siteConfig = readDataFile<any>('siteConfig.json', {});
         const senderEmail: string = siteConfig?.contact?.email ?? '';
         const senderName: string = siteConfig?.name ?? 'Newsletter';
+        const baseUrl = (siteConfig?.url || '').replace(/\/$/, '');
+        const footerAddress = siteConfig?.address || siteConfig?.contact?.address || '';
+        const unsubscribeSecret = import.meta.env.ADMIN_SECRET || process.env.ADMIN_SECRET || '';
 
         if (!senderEmail) return json({ processed: 0, sent: 0, failed: 0, reason: 'no_sender_email' });
 
         // Lê subscribers
         const subsRaw = await readFileFromRepo('src/data/subscribers.json');
-        const subscribers: Array<{ email: string; subscribedAt: string }> = subsRaw
+        const subscribers: Array<{ email: string; subscribedAt: string; unsubscribed?: boolean }> = subsRaw
             ? JSON.parse(subsRaw)
             : [];
 
@@ -77,6 +81,7 @@ export const GET: APIRoute = async ({ request }) => {
         let processed = 0;
 
         outer: for (const sub of subscribers) {
+            if (sub.unsubscribed) continue;
             const subscribedAt = new Date(sub.subscribedAt).getTime();
             if (isNaN(subscribedAt)) continue;
             const daysSince = (now - subscribedAt) / MS_PER_DAY;
@@ -94,10 +99,14 @@ export const GET: APIRoute = async ({ request }) => {
                 processed++;
                 if (sent >= MAX_SENDS_PER_RUN) break outer;
 
-                const htmlContent = seq.body
-                    .split('\n')
-                    .map(line => `<p>${line}</p>`)
-                    .join('');
+                const unsubscribeUrl = (baseUrl && unsubscribeSecret)
+                    ? `${baseUrl}/unsubscribe?e=${encodeURIComponent(sub.email)}&t=${createUnsubscribeToken(sub.email, unsubscribeSecret)}`
+                    : undefined;
+                const htmlContent = renderEmailHtml(seq.body || '', {
+                    unsubscribeUrl,
+                    recipientEmail: sub.email,
+                    footerAddress,
+                });
 
                 const result = await sendTransactionalEmail(
                     apiKey,

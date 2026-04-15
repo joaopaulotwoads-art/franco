@@ -77,9 +77,24 @@ export const POST: APIRoute = async ({ request }) => {
             subscribers = [];
         }
 
-        // Checa duplicata
-        const exists = subscribers.some((s: any) => s.email === email);
-        if (exists) {
+        // Checa duplicata (reativa inscrição se estava cancelada)
+        const existingIndex = subscribers.findIndex((s: any) => s.email === email);
+        if (existingIndex !== -1) {
+            const existing = subscribers[existingIndex];
+            if (existing?.unsubscribed) {
+                subscribers[existingIndex] = {
+                    ...existing,
+                    unsubscribed: false,
+                    unsubscribedAt: null,
+                    subscribedAt: new Date().toISOString(),
+                };
+                await writeFileToRepo(
+                    'src/data/subscribers.json',
+                    JSON.stringify(subscribers, null, 2),
+                    { message: `Newsletter: re-subscribe ${email}` },
+                );
+                return json({ success: true, message: 'Inscrição reativada com sucesso!' });
+            }
             return json({ success: true, message: 'Você já está inscrito!' });
         }
 
@@ -103,7 +118,7 @@ export const POST: APIRoute = async ({ request }) => {
         // Sincroniza com Brevo se configurado
         const config = readPluginsConfig();
         const emailListConfig = config?.emailList;
-        const brevoApiKey = process.env.BREVO_API_KEY || emailListConfig?.brevoApiKey;
+        const brevoApiKey = import.meta.env.BREVO_API_KEY || process.env.BREVO_API_KEY || emailListConfig?.brevoApiKey;
         if (brevoApiKey && emailListConfig?.brevoListId) {
             await addContact(
                 brevoApiKey,

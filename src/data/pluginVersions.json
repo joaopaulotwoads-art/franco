@@ -1,3 +1,8 @@
 {
-  "seo": "1.0.0"
+  "google-analytics": "1.0.0",
+  "updater": "2.0.1",
+  "email-list": "1.0.0",
+  "seo": "1.0.0",
+  "search-console": "1.0.0",
+  "redirects": "1.0.0"
 }

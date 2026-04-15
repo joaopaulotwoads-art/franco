@@ -519,15 +519,28 @@ export default function PostEditor({ filePath }: PostEditorProps) {
                             )}
                         </div>
                         {isPreview ? (
-                            <div className="prose prose-slate max-w-none border border-slate-200 rounded-xl p-6 min-h-[300px]" dangerouslySetInnerHTML={{ __html: post.content }} />
+                            <div
+                                className="prose prose-slate prose-lg max-w-none border border-slate-200 rounded-xl p-6 md:p-8 min-h-[320px] bg-white text-slate-800 leading-relaxed [&_p]:leading-relaxed [&_li]:leading-relaxed"
+                                dangerouslySetInnerHTML={{ __html: post.content }}
+                            />
                         ) : QuillEditor ? (
-                            <div className="relative">
+                            <div
+                                className="relative rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm
+                                [&_.ql-toolbar]:sticky [&_.ql-toolbar]:top-0 [&_.ql-toolbar]:z-10 [&_.ql-toolbar]:bg-white [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-slate-200 [&_.ql-toolbar]:px-2 [&_.ql-toolbar]:py-1
+                                [&_.ql-container]:border-0 [&_.ql-container]:rounded-b-xl
+                                [&_.ql-editor]:min-h-[22rem] [&_.ql-editor]:max-h-[min(70vh,46rem)] [&_.ql-editor]:overflow-y-auto [&_.ql-editor]:overflow-x-hidden
+                                [&_.ql-editor]:px-5 [&_.ql-editor]:py-5 [&_.ql-editor]:text-[17px] [&_.ql-editor]:leading-[1.75] [&_.ql-editor]:text-slate-800 [&_.ql-editor]:font-sans
+                                [&_.ql-editor_h1]:text-3xl [&_.ql-editor_h1]:font-bold [&_.ql-editor_h1]:mt-6 [&_.ql-editor_h1]:mb-3
+                                [&_.ql-editor_h2]:text-2xl [&_.ql-editor_h2]:font-bold [&_.ql-editor_h2]:mt-5 [&_.ql-editor_h2]:mb-2.5
+                                [&_.ql-editor_h3]:text-xl [&_.ql-editor_h3]:font-semibold [&_.ql-editor_h3]:mt-4 [&_.ql-editor_h3]:mb-2
+                                [&_.ql-editor_p]:mb-3 [&_.ql-editor_ul]:my-3 [&_.ql-editor_ol]:my-3 [&_.ql-editor_li]:my-0.5
+                                [&_.ql-editor_a]:text-violet-700 [&_.ql-editor_a]:underline"
+                            >
                                 <QuillEditor
                                     ref={quillRef}
                                     theme="snow"
                                     value={post.content}
                                     onChange={(val: string) => setPost(p => ({ ...p, content: val }))}
-                                    style={{ minHeight: '300px' }}
                                 />
                                 {affiliateFab && !affiliateModalOpen && !affiliateTableModalOpen && !affiliateComparisonModalOpen && (
                                     <button

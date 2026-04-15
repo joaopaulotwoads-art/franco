@@ -8,10 +8,11 @@
 import { useState, useEffect } from 'react';
 import {
     Plus, Trash2, Send, Loader2, CheckCircle, AlertCircle, Save,
-    Mail, Calendar, Clock
+    Mail, Calendar, Clock, Link2, Image as ImageIcon, RectangleHorizontal, List, Type, Quote, Minus
 } from 'lucide-react';
 import { githubApi } from '../../lib/adminApi';
 import { triggerToast } from '../../components/admin/CmsToaster';
+import { marked } from 'marked';
 
 const CONFIG_PATH = 'src/data/pluginsConfig.json';
 
@@ -21,6 +22,11 @@ interface EmailItem {
     body: string;
     delayDays: number;
 }
+
+marked.setOptions({
+    gfm: true,
+    breaks: true,
+});
 
 export default function EmailSequenceEditor() {
     const [emails, setEmails] = useState<EmailItem[]>([]);
@@ -35,6 +41,22 @@ export default function EmailSequenceEditor() {
     const [sendResults, setSendResults] = useState<Record<string, { ok: boolean; msg: string }>>({});
     const [sequenceStats, setSequenceStats] = useState<Array<{ sequenceIndex: number; sent: number; failed: number; lastSentAt: string }>>([]);
     const [lastRunAt, setLastRunAt] = useState<string | null>(null);
+    const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
+
+    function sanitizePreviewHtml(html: string): string {
+        return html
+            .replace(/<\s*(script|style|iframe|object|embed|meta|link)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+            .replace(/<\s*(script|style|iframe|object|embed|meta|link)[^>]*\/?\s*>/gi, '')
+            .replace(/\son\w+=(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+            .replace(/\s(href|src)=["']\s*javascript:[^"']*["']/gi, ' $1="#"');
+    }
+
+    function renderPreviewHtml(markdown: string): string {
+        const input = (markdown || '').trim();
+        if (!input) return '';
+        const raw = marked.parse(input) as string;
+        return sanitizePreviewHtml(raw);
+    }
 
     useEffect(() => {
         Promise.all([
@@ -76,6 +98,87 @@ export default function EmailSequenceEditor() {
 
     function updateEmail(id: string, field: keyof Omit<EmailItem, 'id'>, value: string | number) {
         setEmails(prev => prev.map(e => e.id === id ? { ...e, [field]: value } : e));
+    }
+
+    function insertSnippet(id: string, snippet: string) {
+        setEmails(prev => prev.map(e => {
+            if (e.id !== id) return e;
+            const base = e.body?.trimEnd() || '';
+            const join = base ? '\n\n' : '';
+            return { ...e, body: `${base}${join}${snippet}` };
+        }));
+    }
+
+    function addLinkSnippet(id: string) {
+        const url = window.prompt('URL do link (ex.: https://seusite.com):', 'https://');
+        if (!url) return;
+        const text = window.prompt('Texto do link:', 'Clique aqui') || 'Clique aqui';
+        insertSnippet(id, `[${text}](${url.trim()})`);
+    }
+
+    function addImageSnippet(id: string) {
+        const url = window.prompt('URL da imagem (https://...):', 'https://');
+        if (!url) return;
+        const alt = window.prompt('Texto alternativo da imagem:', 'Imagem') || 'Imagem';
+        insertSnippet(id, `![${alt}](${url.trim()})`);
+    }
+
+    function addButtonSnippet(id: string) {
+        const url = window.prompt('URL do botão (https://...):', 'https://');
+        if (!url) return;
+        const text = window.prompt('Texto do botão:', 'Quero acessar') || 'Quero acessar';
+        insertSnippet(
+            id,
+            `<p style="margin: 20px 0;">\n  <a href="${url.trim()}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 18px;background:#7c3aed;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;">${text}</a>\n</p>`,
+        );
+    }
+
+    function addHeadingSnippet(id: string, level: 1 | 2 | 3) {
+        const title = window.prompt(`Texto do título H${level}:`, level === 1 ? 'Título principal' : 'Subtítulo') || '';
+        if (!title.trim()) return;
+        insertSnippet(id, `${'#'.repeat(level)} ${title.trim()}`);
+    }
+
+    function addParagraphSnippet(id: string) {
+        const text = window.prompt('Texto do parágrafo:', 'Escreva aqui sua mensagem...') || '';
+        if (!text.trim()) return;
+        insertSnippet(id, text.trim());
+    }
+
+    function addListSnippet(id: string) {
+        insertSnippet(id, `- Benefício 1\n- Benefício 2\n- Benefício 3`);
+    }
+
+    function addQuoteSnippet(id: string) {
+        const quote = window.prompt('Texto da citação/destaque:', 'Uma frase forte para destacar no email.') || '';
+        if (!quote.trim()) return;
+        insertSnippet(id, `> ${quote.trim()}`);
+    }
+
+    function addDividerSnippet(id: string) {
+        insertSnippet(id, '---');
+    }
+
+    function addSignatureSnippet(id: string) {
+        insertSnippet(id, `Um grande abraço,\n\nPaula Franco\nSoberania Quântica`);
+    }
+
+    function applyTemplate(id: string, template: 'boasvindas' | 'conteudo' | 'oferta') {
+        const templates: Record<typeof template, string> = {
+            boasvindas: `# Bem-vindo(a) à nossa comunidade!\n\nOlá {{nome}},\n\nQue alegria ter você com a gente. A partir de agora, você vai receber conteúdos para transformar sua vida com consciência e direção.\n\n## O que você vai receber\n\n- Reflexões práticas\n- Conteúdos exclusivos\n- Convites especiais\n\n[Conhecer o conteúdo especial](https://seusite.com/oferta)\n\nUm grande abraço,\n\nPaula Franco\nSoberania Quântica`,
+            conteudo: `# Novo conteúdo para você\n\nOlá {{nome}},\n\nSaiu um conteúdo novo que pode te ajudar muito:\n\n[Ver conteúdo agora](https://seusite.com/blog/post)\n\n> Dica: reserve 10 minutos sem distrações para absorver melhor.\n\nUm grande abraço,\n\nPaula Franco\nSoberania Quântica`,
+            oferta: `# Convite especial para você\n\nOlá {{nome}},\n\nPreparei uma condição especial por tempo limitado.\n\n## O que você recebe\n\n- Acesso imediato\n- Material complementar\n- Suporte exclusivo\n\n<p style="margin: 20px 0;">\n  <a href="https://seusite.com/oferta" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 18px;background:#7c3aed;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;">Quero aproveitar agora</a>\n</p>\n\nNos vemos do outro lado,\n\nPaula Franco`,
+        };
+
+        setEmails(prev => prev.map(e => {
+            if (e.id !== id) return e;
+            const hasContent = !!e.body?.trim();
+            if (hasContent) {
+                const ok = window.confirm('Substituir o conteúdo atual pelo template?');
+                if (!ok) return e;
+            }
+            return { ...e, body: templates[template] };
+        }));
     }
 
     async function handleSave() {
@@ -123,17 +226,13 @@ export default function EmailSequenceEditor() {
         setSendingId(emailItem.id);
         setSendResults(prev => ({ ...prev, [emailItem.id]: undefined as any }));
         try {
-            const htmlContent = emailItem.body
-                .split('\n')
-                .map(line => `<p>${line}</p>`)
-                .join('');
             const res = await fetch('/api/admin/plugins/email-list/send-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     to: testEmail.trim(),
                     subject: emailItem.subject,
-                    htmlContent,
+                    bodyMarkdown: emailItem.body,
                 }),
             });
             const data = await res.json();
@@ -261,6 +360,108 @@ export default function EmailSequenceEditor() {
                                 {/* Corpo */}
                                 <div>
                                     <label className={labelClass}>Conteúdo (texto simples / markdown)</label>
+                                    <div className="mb-2 flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => addHeadingSnippet(emailItem.id, 1)}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                        >
+                                            <Type className="w-3.5 h-3.5" />
+                                            Título
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => addHeadingSnippet(emailItem.id, 2)}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                        >
+                                            <Type className="w-3.5 h-3.5" />
+                                            Subtítulo
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => addParagraphSnippet(emailItem.id)}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                        >
+                                            <Type className="w-3.5 h-3.5" />
+                                            Texto
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => addListSnippet(emailItem.id)}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                        >
+                                            <List className="w-3.5 h-3.5" />
+                                            Lista
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => addLinkSnippet(emailItem.id)}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                        >
+                                            <Link2 className="w-3.5 h-3.5" />
+                                            Link
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => addImageSnippet(emailItem.id)}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                        >
+                                            <ImageIcon className="w-3.5 h-3.5" />
+                                            Imagem
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => addButtonSnippet(emailItem.id)}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                        >
+                                            <RectangleHorizontal className="w-3.5 h-3.5" />
+                                            Botão CTA
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => addQuoteSnippet(emailItem.id)}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                        >
+                                            <Quote className="w-3.5 h-3.5" />
+                                            Destaque
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => addDividerSnippet(emailItem.id)}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                        >
+                                            <Minus className="w-3.5 h-3.5" />
+                                            Divisor
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => addSignatureSnippet(emailItem.id)}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                        >
+                                            Assinatura
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => applyTemplate(emailItem.id, 'boasvindas')}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-violet-200 bg-violet-50 rounded-lg text-xs font-semibold text-violet-700 hover:bg-violet-100 transition-colors"
+                                        >
+                                            Template boas-vindas
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => applyTemplate(emailItem.id, 'conteudo')}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-violet-200 bg-violet-50 rounded-lg text-xs font-semibold text-violet-700 hover:bg-violet-100 transition-colors"
+                                        >
+                                            Template conteúdo
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => applyTemplate(emailItem.id, 'oferta')}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-violet-200 bg-violet-50 rounded-lg text-xs font-semibold text-violet-700 hover:bg-violet-100 transition-colors"
+                                        >
+                                            Template oferta
+                                        </button>
+                                    </div>
                                     <textarea
                                         rows={5}
                                         value={emailItem.body}
@@ -268,6 +469,33 @@ export default function EmailSequenceEditor() {
                                         placeholder="Olá {{nome}},&#10;&#10;Escreva aqui o conteúdo do email..."
                                         className={`${inputClass} resize-none font-mono text-xs`}
                                     />
+                                    <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                        <div className="mb-2 flex items-center justify-between gap-2">
+                                            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Preview do email</p>
+                                            <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPreviewMode('desktop')}
+                                                    className={`px-2.5 py-1 text-xs font-semibold ${previewMode === 'desktop' ? 'bg-violet-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                                                >
+                                                    Desktop
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPreviewMode('mobile')}
+                                                    className={`px-2.5 py-1 text-xs font-semibold ${previewMode === 'mobile' ? 'bg-violet-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                                                >
+                                                    Celular
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className={`mx-auto rounded-lg border border-slate-200 bg-white p-3 ${previewMode === 'mobile' ? 'max-w-[390px]' : 'max-w-none'}`}>
+                                            <div
+                                                className="prose prose-sm max-w-none prose-a:text-violet-700 prose-img:rounded-md prose-img:max-h-56 prose-p:my-2 prose-ul:my-2"
+                                                dangerouslySetInnerHTML={{ __html: renderPreviewHtml(emailItem.body) }}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {/* Enviar teste */}
