@@ -1,5 +1,5 @@
 ---
-title: "Crenças Limitantes sobre Dinheiro Como Reprogramar sua Mente para a Abundância"
+title: "Crenças limitantes dinheiro 11 travas mentais que sabotam sua prosperidade e como virar o jogo"
 description: "Limpe as crenças limitantes sobre dinheiro e assuma a soberania da sua vida financeira com o reprocessamento emocional."
 pubDate: "2026-04-15"
 heroImage: "/uploads/1776277520232-blog-cover.webp"
