@@ -42,6 +42,18 @@ function githubErrorMessage(e: Record<string, unknown>, fallback: string): strin
     const msg = e?.message;
     if (typeof msg === 'string') return msg;
     if (Array.isArray(msg)) return msg.map(String).join('; ');
+    const errors = e?.errors;
+    if (Array.isArray(errors)) {
+        const parts = errors
+            .map((x: unknown) => {
+                if (x && typeof x === 'object' && 'message' in x && typeof (x as { message: unknown }).message === 'string') {
+                    return (x as { message: string }).message;
+                }
+                return null;
+            })
+            .filter(Boolean) as string[];
+        if (parts.length) return parts.join('; ');
+    }
     return fallback;
 }
 
@@ -228,19 +240,16 @@ export const POST: APIRoute = async ({ request }) => {
                     }
                 }
 
+                /** Ramo default real do repo (PUT costuma funcionar sem branch; DELETE em alguns casos exige nome explícito). */
+                const repoMetaRes = await fetch(`https://api.github.com/repos/${repoFull}`, { headers });
+                let defaultBranchName: string | undefined;
+                if (repoMetaRes.ok) {
+                    const meta = await repoMetaRes.json().catch(() => ({}));
+                    if (typeof meta?.default_branch === 'string') defaultBranchName = meta.default_branch;
+                }
+
                 const deleteUrl = contentsWriteDeleteUrl(path);
                 const deleteMsg = message || `Delete ${path} via CMS`;
-
-                /** GitHub: sem branch no body usa o ramo default (igual a muitos PUT que já funcionam). */
-                const runDelete = async (fileSha: string, includeBranchInBody: boolean): Promise<Response> => {
-                    const deleteBody: Record<string, string> = { message: deleteMsg, sha: fileSha };
-                    if (includeBranchInBody && branch) deleteBody.branch = branch;
-                    return fetch(deleteUrl, {
-                        method: 'DELETE',
-                        headers: { ...headers, 'Content-Type': 'application/json' },
-                        body: JSON.stringify(deleteBody),
-                    });
-                };
 
                 const shaFromDefaultBranch = async (): Promise<string | null> => {
                     const url = `https://api.github.com/repos/${repoFull}/contents/${encodeGithubContentPath(path)}`;
@@ -250,13 +259,33 @@ export const POST: APIRoute = async ({ request }) => {
                     return d?.type === 'file' && typeof d.sha === 'string' ? d.sha : null;
                 };
 
-                /** Tenta: com GITHUB_BRANCH (se houver), depois sem branch; alinha com publicação que costuma omitir branch. */
+                /**
+                 * Várias tentativas: GITHUB_BRANCH → default_branch da API → sem campo branch.
+                 * Evita duplicar o mesmo ramo e cobre ambientes onde omitir `branch` no DELETE falha.
+                 */
                 const tryDeleteWithStrategies = async (fileSha: string): Promise<Response> => {
-                    if (branch) {
-                        const withB = await runDelete(fileSha, true);
-                        if (withB.ok) return withB;
+                    const strategies: (string | undefined)[] = [];
+                    if (branch) strategies.push(branch);
+                    if (defaultBranchName && defaultBranchName !== branch) strategies.push(defaultBranchName);
+                    strategies.push(undefined);
+
+                    const seen = new Set<string>();
+                    let last!: Response;
+                    for (const br of strategies) {
+                        const dedupeKey = br ?? '__none__';
+                        if (seen.has(dedupeKey)) continue;
+                        seen.add(dedupeKey);
+
+                        const deleteBody: Record<string, string> = { message: deleteMsg, sha: fileSha };
+                        if (br) deleteBody.branch = br;
+                        last = await fetch(deleteUrl, {
+                            method: 'DELETE',
+                            headers: { ...headers, 'Content-Type': 'application/json' },
+                            body: JSON.stringify(deleteBody),
+                        });
+                        if (last.ok) return last;
                     }
-                    return runDelete(fileSha, false);
+                    return last;
                 };
 
                 res = await tryDeleteWithStrategies(shaToUse);
@@ -264,7 +293,8 @@ export const POST: APIRoute = async ({ request }) => {
                 if (!res.ok && (res.status === 422 || res.status === 409)) {
                     const latest = await shaFromDefaultBranch();
                     if (latest && latest !== shaToUse) {
-                        res = await tryDeleteWithStrategies(latest);
+                        shaToUse = latest;
+                        res = await tryDeleteWithStrategies(shaToUse);
                     }
                 }
 

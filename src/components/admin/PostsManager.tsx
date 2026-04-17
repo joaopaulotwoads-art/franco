@@ -12,7 +12,7 @@ export default function PostsManager() {
     const [search, setSearch] = useState('');
     const [authors, setAuthors] = useState<any[]>([]);
     const [dynamicCategories, setDynamicCategories] = useState<string[]>([]);
-    const [editingSha, setEditingSha] = useState<string | null>(null);
+    const [editingPath, setEditingPath] = useState<string | null>(null);
     const [quickEditData, setQuickEditData] = useState<any>(null);
     const [saving, setSaving] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
@@ -22,6 +22,8 @@ export default function PostsManager() {
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
     const [deletingPath, setDeletingPath] = useState<string | null>(null);
+    /** `window.confirm` falha em alguns browsers / WebViews; modal garante o fluxo. */
+    const [pendingDelete, setPendingDelete] = useState<null | { path: string; sha: string; name: string }>(null);
     const itemsPerPage = 20;
 
     useEffect(() => { fetchInitialData(); }, []);
@@ -80,13 +82,12 @@ export default function PostsManager() {
         }
     };
 
-    const handleDelete = async (path: string, sha: string, name: string) => {
+    const executeDelete = async (path: string, sha: string, name: string) => {
         const normPath = normalizeRepoPath(path);
         if (!normPath) {
             triggerToast('Erro: caminho do ficheiro inválido.', 'error');
             return;
         }
-        if (!confirm(`Excluir o post "${name}"?`)) return;
         setDeletingPath(normPath);
         try {
             let shaToUse = String(sha || '').trim();
@@ -109,7 +110,7 @@ export default function PostsManager() {
     };
 
     const handleQuickAction = (post: any) => {
-        setEditingSha(post.sha);
+        setEditingPath(normalizeRepoPath(post.path));
         setQuickEditData({ title: post.title, slug: post.slug, pubDate: post.pubDate ? new Date(post.pubDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0], author: post.author, category: post.category, draft: post.draft, _oldSlug: post.slug, _oldPath: post.path, _sha: post.sha, description: post.description, heroImage: post.heroImage, rawBody: post.rawBody });
     };
 
@@ -134,7 +135,7 @@ export default function PostsManager() {
                 await githubApi('write', targetPath, { content: markdown, sha: quickEditData._sha, message: `CMS: Edição Rápida ${slug}` });
             }
             triggerToast('Artigo atualizado com sucesso!', 'success');
-            setEditingSha(null);
+            setEditingPath(null);
             fetchInitialData();
         } catch (e: any) {
             triggerToast(`Erro: ${e.message}`, 'error');
@@ -180,6 +181,36 @@ export default function PostsManager() {
 
     return (
         <div className="space-y-6 pb-32">
+            {pendingDelete && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/50" role="dialog" aria-modal="true" aria-labelledby="delete-post-title">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+                        <h3 id="delete-post-title" className="text-lg font-bold text-slate-800">Excluir artigo?</h3>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                            O ficheiro <span className="font-mono text-xs break-all text-slate-800">{normalizeRepoPath(pendingDelete.path)}</span> será removido do repositório. Esta ação não pode ser desfeita pelo painel.
+                        </p>
+                        <div className="flex gap-3 justify-end pt-2">
+                            <button
+                                type="button"
+                                className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                                onClick={() => setPendingDelete(null)}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors"
+                                onClick={() => {
+                                    const p = pendingDelete;
+                                    setPendingDelete(null);
+                                    void executeDelete(p.path, p.sha, p.name);
+                                }}
+                            >
+                                Excluir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 px-6 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-40">
                 <div>
@@ -225,7 +256,7 @@ export default function PostsManager() {
                         <table className="w-full text-left">
                             <thead className="border-b border-slate-200 bg-slate-50">
                                 <tr>
-                                    <th className="py-4 px-4 w-8"><input type="checkbox" className="rounded" onChange={e => setSelectedPosts(e.target.checked ? paginated.map(p => p.sha) : [])} checked={selectedPosts.length === paginated.length && paginated.length > 0} /></th>
+                                    <th className="py-4 px-4 w-8"><input type="checkbox" className="rounded" onChange={e => setSelectedPosts(e.target.checked ? paginated.map(p => normalizeRepoPath(p.path)) : [])} checked={selectedPosts.length === paginated.length && paginated.length > 0} /></th>
                                     <th className="py-4 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-slate-700" onClick={() => toggleSort('title')}>Título <SortIcon field="title" /></th>
                                     <th className="py-4 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Categoria</th>
                                     <th className="py-4 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider hidden md:table-cell">Autor</th>
@@ -236,9 +267,9 @@ export default function PostsManager() {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {paginated.map(post => (
-                                    <React.Fragment key={post.sha}>
+                                    <React.Fragment key={normalizeRepoPath(post.path)}>
                                         <tr className="hover:bg-slate-50 transition-colors">
-                                            <td className="py-4 px-4"><input type="checkbox" className="rounded" checked={selectedPosts.includes(post.sha)} onChange={e => setSelectedPosts(e.target.checked ? [...selectedPosts, post.sha] : selectedPosts.filter(s => s !== post.sha))} /></td>
+                                            <td className="py-4 px-4"><input type="checkbox" className="rounded" checked={selectedPosts.includes(normalizeRepoPath(post.path))} onChange={e => setSelectedPosts(e.target.checked ? [...selectedPosts, normalizeRepoPath(post.path)] : selectedPosts.filter(s => s !== normalizeRepoPath(post.path)))} /></td>
                                             <td className="py-4 px-4">
                                                 <p className="font-bold text-slate-800 text-sm line-clamp-1">{post.title}</p>
                                                 <p className="text-xs text-slate-400 font-mono mt-0.5">/{post.slug}</p>
@@ -263,7 +294,7 @@ export default function PostsManager() {
                                                         onClick={e => {
                                                             e.preventDefault();
                                                             e.stopPropagation();
-                                                            void handleDelete(post.path, post.sha, post.title);
+                                                            setPendingDelete({ path: post.path, sha: post.sha, name: post.title });
                                                         }}
                                                         title="Excluir"
                                                         className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none"
@@ -279,7 +310,7 @@ export default function PostsManager() {
                                         </tr>
 
                                         {/* Quick Edit Row */}
-                                        {editingSha === post.sha && quickEditData && (
+                                        {editingPath === normalizeRepoPath(post.path) && quickEditData && (
                                             <tr className="bg-violet-50">
                                                 <td colSpan={7} className="px-4 py-4">
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -319,7 +350,7 @@ export default function PostsManager() {
                                                         </div>
                                                     </div>
                                                     <div className="flex gap-3 mt-4 justify-end">
-                                                        <button onClick={() => setEditingSha(null)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-200 rounded-lg transition-colors"><X className="w-4 h-4" />Cancelar</button>
+                                                        <button onClick={() => setEditingPath(null)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-200 rounded-lg transition-colors"><X className="w-4 h-4" />Cancelar</button>
                                                         <button onClick={saveQuickEdit} disabled={saving} className="flex items-center gap-1.5 px-5 py-2 text-sm font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-lg shadow-sm transition-all disabled:opacity-60">
                                                             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                                             {saving ? 'Salvando...' : 'Salvar'}
