@@ -80,8 +80,11 @@ export default function PostsManager() {
     const handleDelete = async (path: string, sha: string, name: string) => {
         if (!confirm(`Excluir o post "${name}"?`)) return;
         try {
-            await githubApi('delete', path, { sha, message: `CMS: Excluindo post ${name}` });
-            setPosts(posts.filter(f => f.sha !== sha));
+            let shaToUse = sha;
+            const fresh = await githubApi('read', path).catch(() => null);
+            if (fresh?.sha) shaToUse = fresh.sha;
+            await githubApi('delete', path, { sha: shaToUse, message: `CMS: Excluindo post ${name}` });
+            setPosts(posts.filter(f => f.path !== path));
             triggerToast(`Artigo "${name}" excluído!`, 'success');
         } catch (err: any) {
             triggerToast(`Erro: ${err.message}`, 'error');
@@ -250,7 +253,13 @@ export default function PostsManager() {
                                                         </div>
                                                         <div>
                                                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Slug (URL)</label>
-                                                            <input type="text" value={quickEditData.slug} onChange={e => setQuickEditData({ ...quickEditData, slug: normalizePostSlug(e.target.value) })} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-violet-500" />
+                                                            <input
+                                                                type="text"
+                                                                value={quickEditData.slug}
+                                                                onChange={e => setQuickEditData({ ...quickEditData, slug: e.target.value })}
+                                                                onBlur={() => setQuickEditData(q => ({ ...q, slug: normalizePostSlug(q.slug) }))}
+                                                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-violet-500"
+                                                            />
                                                         </div>
                                                         <div>
                                                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Data</label>

@@ -407,8 +407,19 @@ export default function PostEditor({ filePath }: PostEditorProps) {
                         <input type="text" value={post.title} onChange={e => handleTitleChange(e.target.value)} className={inputClass} placeholder="Título do artigo..." />
                         <div className="mt-3">
                             <label className={labelClass}>Slug (URL) *</label>
-                            <input type="text" value={post.slug} onChange={e => setPost(p => ({ ...p, slug: normalizePostSlug(e.target.value) }))} className={`${inputClass} font-mono text-xs`} placeholder="ex.: galzerano-ou-burigotto-melhor-marca-2026" />
-                        <p className="text-[11px] text-slate-400 mt-1.5">URL pública: <span className="font-mono text-slate-500">/{post.slug || '…'}</span> — 3 a 120 caracteres, minúsculas e hífens.</p>
+                            <input
+                                type="text"
+                                value={post.slug}
+                                onChange={e => setPost(p => ({ ...p, slug: e.target.value }))}
+                                onBlur={() => setPost(p => ({ ...p, slug: normalizePostSlug(p.slug) }))}
+                                className={`${inputClass} font-mono text-xs`}
+                                placeholder="ex.: galzerano-ou-burigotto-melhor-marca-2026"
+                            />
+                        <p className="text-[11px] text-slate-400 mt-1.5">
+                            URL pública:{' '}
+                            <span className="font-mono text-slate-500">/{normalizePostSlug(post.slug) || '…'}</span>
+                            {' '}— 3 a 120 caracteres; acentos viram letras simples ao salvar.
+                        </p>
                         </div>
                         <div className="mt-3">
                             <label className={labelClass}>Descrição / Meta Description</label>

@@ -11,5 +11,11 @@ export async function githubApi(action: string, path: string, extra?: Record<str
         const payload = await res.json().catch(() => ({}));
         throw new Error(payload.error || `Erro ${res.status} na API`);
     }
-    return res.json();
+    const text = await res.text();
+    if (!text) return {};
+    try {
+        return JSON.parse(text);
+    } catch {
+        return { raw: text };
+    }
 }
