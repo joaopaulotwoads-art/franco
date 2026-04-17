@@ -33,9 +33,10 @@ export default function CmsToaster() {
                     const withoutProgress = prev.filter(t => t.type !== 'progress');
                     return [...withoutProgress, newToast];
                 });
+                const dismissMs = newToast.type === 'error' ? 14_000 : 6000;
                 setTimeout(() => {
                     setToasts(prev => prev.filter(t => t.id !== newToast.id));
-                }, 6000);
+                }, dismissMs);
             }
         };
 

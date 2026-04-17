@@ -17,6 +17,16 @@ function encodeGithubContentPath(path: string): string {
         .join('/');
 }
 
+/** Path vindo do cliente: sem barras iniciais, só forward slashes. */
+function normalizeRepoPath(raw: unknown): string {
+    return String(raw ?? '')
+        .trim()
+        .replace(/^\/+/, '')
+        .replace(/\\/g, '/')
+        .replace(/\/+/g, '/')
+        .replace(/^\/+|\/+$/g, '');
+}
+
 /**
  * Na Vercel, segredos costumam existir só em process.env em runtime; import.meta.env pode vir
  * vazio no bundle (substituição em build). Sem token o código caía em handleDev: em serverless
@@ -30,6 +40,24 @@ function getGithubEnv(): { token: string; owner: string; repo: string } | null {
     return { token, owner, repo };
 }
 
+/** Ramo onde estão os ficheiros (ex.: main). Opcional: default = ramo default do repo no GitHub. */
+function getOptionalBranch(): string | undefined {
+    const b = String(process.env.GITHUB_BRANCH ?? import.meta.env.GITHUB_BRANCH ?? '').trim();
+    if (!b) return undefined;
+    return b.replace(/^refs\/heads\//i, '');
+}
+
+function githubErrorMessage(e: Record<string, unknown>, fallback: string): string {
+    const msg = e?.message;
+    if (typeof msg === 'string') return msg;
+    if (Array.isArray(msg)) return msg.map(String).join('; ');
+    return fallback;
+}
+
+function isLikelyGithubBlobSha(s: string): boolean {
+    return /^[a-f0-9]{40}$/i.test(s.trim());
+}
+
 /** Modo dev: lê/escreve arquivos locais sem precisar do GitHub */
 async function handleDev(action: string, path: string, content?: string, isBase64?: boolean): Promise<Response> {
     const absPath = nodePath.join(PROJECT_ROOT, path);
@@ -39,7 +67,7 @@ async function handleDev(action: string, path: string, content?: string, isBase6
             let entries: any[];
             try {
                 const files = await fs.readdir(absPath);
-                entries = files.map(name => ({
+                entries = files.map((name) => ({
                     name,
                     path: `${path}/${name}`,
                     sha: `dev-${name}`, // sha fictício para o dev
@@ -54,7 +82,6 @@ async function handleDev(action: string, path: string, content?: string, isBase6
         case 'read': {
             try {
                 const raw = await fs.readFile(absPath, 'utf-8');
-                // sha fictício mas estável (usamos mtime como proxy)
                 const stat = await fs.stat(absPath);
                 const sha = `dev-${stat.mtimeMs}`;
                 return new Response(JSON.stringify({ content: raw, sha }), { status: 200 });
@@ -83,19 +110,18 @@ async function handleDev(action: string, path: string, content?: string, isBase6
         }
 
         default:
-            throw new Error("Ação inválida.");
+            throw new Error('Ação inválida.');
     }
 }
 
 export const POST: APIRoute = async ({ request }) => {
     try {
         const body = await request.json();
-        const { action, path, content, message, sha, isBase64 } = body;
+        const { action, content, message, sha, isBase64 } = body;
+        const path = normalizeRepoPath(body.path);
 
         const gh = getGithubEnv();
 
-        // Fora do `astro dev`, nunca simular GitHub no disco: em serverless o FS é só leitura e o
-        // delete parecia funcionar (200) mas o ficheiro continuava no GitHub.
         if (!gh) {
             if (!action || !path) {
                 return new Response(JSON.stringify({ error: 'Faltam parâmetros (action, path)' }), { status: 400 });
@@ -113,24 +139,27 @@ export const POST: APIRoute = async ({ request }) => {
         }
 
         const { token: GITHUB_TOKEN, owner: GITHUB_OWNER, repo: GITHUB_REPO } = gh;
+        const branch = getOptionalBranch();
 
         if (!action || !path) {
             return new Response(JSON.stringify({ error: 'Faltam parâmetros obrigatórios (action, path)' }), { status: 400 });
         }
 
-        const repo = `${GITHUB_OWNER}/${GITHUB_REPO}`;
-        const githubUrl = `https://api.github.com/repos/${repo}/contents/${encodeGithubContentPath(path)}`;
+        const repoFull = `${GITHUB_OWNER}/${GITHUB_REPO}`;
         const headers: Record<string, string> = {
             Authorization: `Bearer ${GITHUB_TOKEN}`,
             Accept: 'application/vnd.github+json',
             'X-GitHub-Api-Version': '2022-11-28',
         };
 
-        function githubErrorMessage(e: Record<string, unknown>, fallback: string): string {
-            const msg = e?.message;
-            if (typeof msg === 'string') return msg;
-            if (Array.isArray(msg)) return msg.map(String).join('; ');
-            return fallback;
+        /** URL para ler/listar (pode precisar ?ref=). DELETE/PUT sem query — branch vai no body. */
+        function contentsReadUrl(filePath: string): string {
+            const base = `https://api.github.com/repos/${repoFull}/contents/${encodeGithubContentPath(filePath)}`;
+            return branch ? `${base}?ref=${encodeURIComponent(branch)}` : base;
+        }
+
+        function contentsWriteDeleteUrl(filePath: string): string {
+            return `https://api.github.com/repos/${repoFull}/contents/${encodeGithubContentPath(filePath)}`;
         }
 
         let res: Response;
@@ -138,9 +167,13 @@ export const POST: APIRoute = async ({ request }) => {
         switch (action) {
             case 'read':
             case 'list': {
-                res = await fetch(githubUrl, { headers });
+                res = await fetch(contentsReadUrl(path), { headers });
                 if (!res.ok) {
-                    if (res.status === 404) return new Response(JSON.stringify({ error: 'Arquivo ou pasta não encontrado', code: 404 }), { status: 404 });
+                    if (res.status === 404) {
+                        return new Response(JSON.stringify({ error: 'Arquivo ou pasta não encontrado', code: 404 }), {
+                            status: 404,
+                        });
+                    }
                     const e = await res.json().catch(() => ({}));
                     throw new Error(`Erro ao ler ${path}: ${githubErrorMessage(e, res.statusText)}`);
                 }
@@ -148,7 +181,6 @@ export const POST: APIRoute = async ({ request }) => {
                 if (Array.isArray(data)) {
                     return new Response(JSON.stringify({ data }), { status: 200 });
                 }
-                /** Ficheiro: GitHub por vezes omite `content` (>1MB ou binário); o `sha` para DELETE/PUT vem sempre aqui. */
                 if (data.type === 'file') {
                     let decoded = '';
                     if (typeof data.content === 'string' && data.content.length > 0) {
@@ -169,7 +201,8 @@ export const POST: APIRoute = async ({ request }) => {
                     content: isBase64 ? content : Buffer.from(content).toString('base64'),
                 };
                 if (sha) writeBody.sha = sha;
-                res = await fetch(githubUrl, {
+                if (branch) writeBody.branch = branch;
+                res = await fetch(contentsWriteDeleteUrl(path), {
                     method: 'PUT',
                     headers: { ...headers, 'Content-Type': 'application/json' },
                     body: JSON.stringify(writeBody),
@@ -186,11 +219,47 @@ export const POST: APIRoute = async ({ request }) => {
                 if (!sha || String(sha).trim() === '') {
                     throw new Error("Ação 'delete' exige o campo 'sha' (hash do ficheiro no GitHub).");
                 }
-                res = await fetch(githubUrl, {
-                    method: 'DELETE',
-                    headers: { ...headers, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: message || `Delete ${path} via CMS`, sha: String(sha).trim() }),
-                });
+
+                let shaToUse = String(sha).trim();
+                if (!isLikelyGithubBlobSha(shaToUse)) {
+                    const probe = await fetch(contentsReadUrl(path), { headers });
+                    if (probe.ok) {
+                        const meta = await probe.json();
+                        if (meta?.type === 'file' && typeof meta.sha === 'string') {
+                            shaToUse = meta.sha;
+                        }
+                    }
+                    if (!isLikelyGithubBlobSha(shaToUse)) {
+                        throw new Error(
+                            `SHA inválido para o GitHub (esperado hash de 40 caracteres hexadecimais). Recebido: "${String(sha).slice(0, 20)}…". Confirme GITHUB_TOKEN e que o CMS está a usar a API do GitHub, não o modo disco local.`,
+                        );
+                    }
+                }
+
+                const doDelete = async (s: string) => {
+                    const deleteBody: Record<string, string> = {
+                        message: message || `Delete ${path} via CMS`,
+                        sha: s,
+                    };
+                    if (branch) deleteBody.branch = branch;
+                    return fetch(contentsWriteDeleteUrl(path), {
+                        method: 'DELETE',
+                        headers: { ...headers, 'Content-Type': 'application/json' },
+                        body: JSON.stringify(deleteBody),
+                    });
+                };
+
+                res = await doDelete(shaToUse);
+                if (!res.ok && (res.status === 422 || res.status === 409)) {
+                    const probe = await fetch(contentsReadUrl(path), { headers });
+                    if (probe.ok) {
+                        const meta = await probe.json();
+                        if (meta?.type === 'file' && typeof meta.sha === 'string' && meta.sha !== shaToUse) {
+                            res = await doDelete(meta.sha);
+                        }
+                    }
+                }
+
                 if (!res.ok) {
                     const e = await res.json().catch(() => ({}));
                     const detail = githubErrorMessage(e, res.statusText);
@@ -203,9 +272,9 @@ export const POST: APIRoute = async ({ request }) => {
                 throw new Error("Ação inválida. Use: 'read', 'list', 'write' ou 'delete'.");
         }
     } catch (err: any) {
-        return new Response(
-            JSON.stringify({ error: err.message }),
-            { status: 500, headers: { 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: err.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+        });
     }
 };
