@@ -25,8 +25,9 @@ export default function PostsManager() {
     useEffect(() => { fetchInitialData(); }, []);
     useEffect(() => { setCurrentPage(1); }, [search, statusFilter, categoryFilter, sortField, sortOrder]);
 
-    const fetchInitialData = async () => {
-        setLoading(true);
+    const fetchInitialData = async (options: { quiet?: boolean } = {}) => {
+        const quiet = options.quiet === true;
+        if (!quiet) setLoading(true);
         try {
             let allCategories = new Set<string>();
 
@@ -73,21 +74,31 @@ export default function PostsManager() {
         } catch (err: any) {
             setError(err.message);
         } finally {
-            setLoading(false);
+            if (!quiet) setLoading(false);
         }
     };
 
     const handleDelete = async (path: string, sha: string, name: string) => {
+        if (!path?.trim()) {
+            triggerToast('Erro: caminho do ficheiro inválido.', 'error');
+            return;
+        }
         if (!confirm(`Excluir o post "${name}"?`)) return;
         try {
-            let shaToUse = sha;
-            const fresh = await githubApi('read', path).catch(() => null);
-            if (fresh?.sha) shaToUse = fresh.sha;
-            await githubApi('delete', path, { sha: shaToUse, message: `CMS: Excluindo post ${name}` });
-            setPosts(posts.filter(f => f.path !== path));
+            let shaToUse = String(sha || '').trim();
+            const fresh = await githubApi('read', path.trim()).catch(() => null);
+            if (fresh?.sha) shaToUse = String(fresh.sha).trim();
+            if (!shaToUse) {
+                triggerToast('Erro: não foi possível obter o hash (sha) do ficheiro no GitHub. Atualize a página e tente de novo.', 'error');
+                return;
+            }
+            await githubApi('delete', path.trim(), { sha: shaToUse, message: `CMS: Excluindo post ${name}` });
+            setPosts(prev => prev.filter(f => f.path !== path.trim()));
+            await fetchInitialData({ quiet: true });
             triggerToast(`Artigo "${name}" excluído!`, 'success');
         } catch (err: any) {
-            triggerToast(`Erro: ${err.message}`, 'error');
+            const msg = err?.message || String(err);
+            triggerToast(msg.includes('401') || msg.includes('Não autorizado') ? `${msg} Recarregue a página ou faça login de novo.` : `Erro: ${msg}`, 'error');
         }
     };
 
@@ -109,7 +120,10 @@ export default function PostsManager() {
 
             if (slug !== quickEditData._oldSlug) {
                 await githubApi('write', targetPath, { content: markdown, message: `CMS: Renomeando ${slug}` });
-                await githubApi('delete', quickEditData._oldPath, { sha: quickEditData._sha, message: 'CMS: Apagando slug antigo' });
+                const oldFresh = await githubApi('read', quickEditData._oldPath).catch(() => null);
+                const oldSha = String(oldFresh?.sha || quickEditData._sha || '').trim();
+                if (!oldSha) throw new Error('Não foi possível obter sha do ficheiro antigo para apagar.');
+                await githubApi('delete', quickEditData._oldPath, { sha: oldSha, message: 'CMS: Apagando slug antigo' });
             } else {
                 await githubApi('write', targetPath, { content: markdown, sha: quickEditData._sha, message: `CMS: Edição Rápida ${slug}` });
             }

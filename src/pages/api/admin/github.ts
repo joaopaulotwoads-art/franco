@@ -93,7 +93,15 @@ export const POST: APIRoute = async ({ request }) => {
         const headers: Record<string, string> = {
             Authorization: `Bearer ${GITHUB_TOKEN}`,
             Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
         };
+
+        function githubErrorMessage(e: Record<string, unknown>, fallback: string): string {
+            const msg = e?.message;
+            if (typeof msg === 'string') return msg;
+            if (Array.isArray(msg)) return msg.map(String).join('; ');
+            return fallback;
+        }
 
         let res: Response;
 
@@ -103,15 +111,22 @@ export const POST: APIRoute = async ({ request }) => {
                 res = await fetch(githubUrl, { headers });
                 if (!res.ok) {
                     if (res.status === 404) return new Response(JSON.stringify({ error: 'Arquivo ou pasta não encontrado', code: 404 }), { status: 404 });
-                    const e = await res.json();
-                    throw new Error(`Erro ao ler ${path}: ${e.message}`);
+                    const e = await res.json().catch(() => ({}));
+                    throw new Error(`Erro ao ler ${path}: ${githubErrorMessage(e, res.statusText)}`);
                 }
                 const data = await res.json();
                 if (Array.isArray(data)) {
                     return new Response(JSON.stringify({ data }), { status: 200 });
                 }
-                if (data.type === 'file' && data.content) {
-                    const decoded = Buffer.from(data.content, 'base64').toString('utf-8');
+                /** Ficheiro: GitHub por vezes omite `content` (>1MB ou binário); o `sha` para DELETE/PUT vem sempre aqui. */
+                if (data.type === 'file') {
+                    let decoded = '';
+                    if (typeof data.content === 'string' && data.content.length > 0) {
+                        decoded = Buffer.from(data.content, 'base64').toString('utf-8');
+                    }
+                    if (!data.sha) {
+                        throw new Error(`Resposta GitHub sem sha para ${path} (type=file).`);
+                    }
                     return new Response(JSON.stringify({ content: decoded, sha: data.sha }), { status: 200 });
                 }
                 return new Response(JSON.stringify({ data }), { status: 200 });
@@ -130,23 +145,26 @@ export const POST: APIRoute = async ({ request }) => {
                     body: JSON.stringify(writeBody),
                 });
                 if (!res.ok) {
-                    const e = await res.json();
-                    throw new Error(`Erro ao salvar ${path}: ${e.message}`);
+                    const e = await res.json().catch(() => ({}));
+                    throw new Error(`Erro ao salvar ${path}: ${githubErrorMessage(e, res.statusText)}`);
                 }
                 const responseData = await res.json();
                 return new Response(JSON.stringify({ success: true, sha: responseData.content?.sha }), { status: 200 });
             }
 
             case 'delete': {
-                if (!sha) throw new Error("Ação 'delete' exige o campo 'sha'.");
+                if (!sha || String(sha).trim() === '') {
+                    throw new Error("Ação 'delete' exige o campo 'sha' (hash do ficheiro no GitHub).");
+                }
                 res = await fetch(githubUrl, {
                     method: 'DELETE',
                     headers: { ...headers, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: message || `Delete ${path} via CMS`, sha }),
+                    body: JSON.stringify({ message: message || `Delete ${path} via CMS`, sha: String(sha).trim() }),
                 });
                 if (!res.ok) {
-                    const e = await res.json();
-                    throw new Error(`Erro ao excluir ${path}: ${e.message}`);
+                    const e = await res.json().catch(() => ({}));
+                    const detail = githubErrorMessage(e, res.statusText);
+                    throw new Error(`Erro ao excluir ${path} (${res.status}): ${detail}`);
                 }
                 return new Response(JSON.stringify({ success: true }), { status: 200 });
             }

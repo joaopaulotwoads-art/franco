@@ -4,8 +4,9 @@
 export async function githubApi(action: string, path: string, extra?: Record<string, any>) {
     const res = await fetch('/api/admin/github', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, path, ...extra })
+        body: JSON.stringify({ action, path, ...extra }),
     });
     if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
