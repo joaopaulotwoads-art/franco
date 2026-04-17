@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import fs from 'node:fs/promises';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizeRepoPath } from '../../../lib/repoPath';
 
 export const prerender = false;
 
@@ -15,16 +16,6 @@ function encodeGithubContentPath(path: string): string {
         .filter(Boolean)
         .map((seg) => encodeURIComponent(seg))
         .join('/');
-}
-
-/** Path vindo do cliente: sem barras iniciais, só forward slashes. */
-function normalizeRepoPath(raw: unknown): string {
-    return String(raw ?? '')
-        .trim()
-        .replace(/^\/+/, '')
-        .replace(/\\/g, '/')
-        .replace(/\/+/g, '/')
-        .replace(/^\/+|\/+$/g, '');
 }
 
 /**
@@ -150,6 +141,7 @@ export const POST: APIRoute = async ({ request }) => {
             Authorization: `Bearer ${GITHUB_TOKEN}`,
             Accept: 'application/vnd.github+json',
             'X-GitHub-Api-Version': '2022-11-28',
+            'User-Agent': 'WalkerCMS/1.0 (content-api; +https://docs.github.com/rest)',
         };
 
         /** URL para ler/listar (pode precisar ?ref=). DELETE/PUT sem query — branch vai no body. */
@@ -236,27 +228,50 @@ export const POST: APIRoute = async ({ request }) => {
                     }
                 }
 
-                const doDelete = async (s: string) => {
-                    const deleteBody: Record<string, string> = {
-                        message: message || `Delete ${path} via CMS`,
-                        sha: s,
-                    };
-                    if (branch) deleteBody.branch = branch;
-                    return fetch(contentsWriteDeleteUrl(path), {
+                const deleteUrl = contentsWriteDeleteUrl(path);
+                const deleteMsg = message || `Delete ${path} via CMS`;
+
+                /** GitHub: sem branch no body usa o ramo default (igual a muitos PUT que já funcionam). */
+                const runDelete = async (fileSha: string, includeBranchInBody: boolean): Promise<Response> => {
+                    const deleteBody: Record<string, string> = { message: deleteMsg, sha: fileSha };
+                    if (includeBranchInBody && branch) deleteBody.branch = branch;
+                    return fetch(deleteUrl, {
                         method: 'DELETE',
                         headers: { ...headers, 'Content-Type': 'application/json' },
                         body: JSON.stringify(deleteBody),
                     });
                 };
 
-                res = await doDelete(shaToUse);
+                const shaFromDefaultBranch = async (): Promise<string | null> => {
+                    const url = `https://api.github.com/repos/${repoFull}/contents/${encodeGithubContentPath(path)}`;
+                    const r = await fetch(url, { headers });
+                    if (!r.ok) return null;
+                    const d = await r.json();
+                    return d?.type === 'file' && typeof d.sha === 'string' ? d.sha : null;
+                };
+
+                /** Tenta: com GITHUB_BRANCH (se houver), depois sem branch; alinha com publicação que costuma omitir branch. */
+                const tryDeleteWithStrategies = async (fileSha: string): Promise<Response> => {
+                    if (branch) {
+                        const withB = await runDelete(fileSha, true);
+                        if (withB.ok) return withB;
+                    }
+                    return runDelete(fileSha, false);
+                };
+
+                res = await tryDeleteWithStrategies(shaToUse);
+
                 if (!res.ok && (res.status === 422 || res.status === 409)) {
-                    const probe = await fetch(contentsReadUrl(path), { headers });
-                    if (probe.ok) {
-                        const meta = await probe.json();
-                        if (meta?.type === 'file' && typeof meta.sha === 'string' && meta.sha !== shaToUse) {
-                            res = await doDelete(meta.sha);
-                        }
+                    const latest = await shaFromDefaultBranch();
+                    if (latest && latest !== shaToUse) {
+                        res = await tryDeleteWithStrategies(latest);
+                    }
+                }
+
+                if (!res.ok) {
+                    const latest = await shaFromDefaultBranch();
+                    if (latest) {
+                        res = await tryDeleteWithStrategies(latest);
                     }
                 }
 

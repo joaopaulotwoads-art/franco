@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Plus, Search, Loader2, Trash2, Edit3, AlertCircle, Save, ChevronUp, ChevronDown, Check, X } from 'lucide-react';
 import { triggerToast } from './CmsToaster';
 import { githubApi } from '../../lib/adminApi';
+import { normalizeRepoPath } from '../../lib/repoPath';
 import { normalizePostSlug, isValidPostSlug } from '../../lib/postSlug';
 
 export default function PostsManager() {
@@ -20,6 +21,7 @@ export default function PostsManager() {
     const [sortField, setSortField] = useState<'title' | 'pubDate'>('pubDate');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
+    const [deletingPath, setDeletingPath] = useState<string | null>(null);
     const itemsPerPage = 20;
 
     useEffect(() => { fetchInitialData(); }, []);
@@ -79,26 +81,30 @@ export default function PostsManager() {
     };
 
     const handleDelete = async (path: string, sha: string, name: string) => {
-        if (!path?.trim()) {
+        const normPath = normalizeRepoPath(path);
+        if (!normPath) {
             triggerToast('Erro: caminho do ficheiro inválido.', 'error');
             return;
         }
         if (!confirm(`Excluir o post "${name}"?`)) return;
+        setDeletingPath(normPath);
         try {
             let shaToUse = String(sha || '').trim();
-            const fresh = await githubApi('read', path.trim()).catch(() => null);
+            const fresh = await githubApi('read', normPath).catch(() => null);
             if (fresh?.sha) shaToUse = String(fresh.sha).trim();
             if (!shaToUse) {
                 triggerToast('Erro: não foi possível obter o hash (sha) do ficheiro no GitHub. Atualize a página e tente de novo.', 'error');
                 return;
             }
-            await githubApi('delete', path.trim(), { sha: shaToUse, message: `CMS: Excluindo post ${name}` });
-            setPosts(prev => prev.filter(f => f.path !== path.trim()));
+            await githubApi('delete', normPath, { sha: shaToUse, message: `CMS: Excluindo post ${name}` });
+            setPosts(prev => prev.filter(f => normalizeRepoPath(f.path) !== normPath));
             await fetchInitialData({ quiet: true });
             triggerToast(`Artigo "${name}" excluído!`, 'success');
         } catch (err: any) {
             const msg = err?.message || String(err);
             triggerToast(msg.includes('401') || msg.includes('Não autorizado') ? `${msg} Recarregue a página ou faça login de novo.` : `Erro: ${msg}`, 'error');
+        } finally {
+            setDeletingPath(null);
         }
     };
 
@@ -249,9 +255,25 @@ export default function PostsManager() {
                                             </td>
                                             <td className="py-4 px-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <button onClick={() => handleQuickAction(post)} title="Edição Rápida" className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"><Edit3 className="w-4 h-4" /></button>
+                                                    <button type="button" onClick={() => handleQuickAction(post)} title="Edição Rápida" className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"><Edit3 className="w-4 h-4" /></button>
                                                     <a href={`/admin/posts/edit?file=${encodeURIComponent(post.path)}`} title="Editar Completo" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"><FileText className="w-4 h-4" /></a>
-                                                    <button onClick={() => handleDelete(post.path, post.sha, post.title)} title="Excluir" className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                                    <button
+                                                        type="button"
+                                                        disabled={deletingPath === normalizeRepoPath(post.path)}
+                                                        onClick={e => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            void handleDelete(post.path, post.sha, post.title);
+                                                        }}
+                                                        title="Excluir"
+                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                                                    >
+                                                        {deletingPath === normalizeRepoPath(post.path) ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin text-red-500" />
+                                                        ) : (
+                                                            <Trash2 className="w-4 h-4" />
+                                                        )}
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
