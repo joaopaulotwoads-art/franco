@@ -18,7 +18,8 @@ export const POST: APIRoute = async ({ request }) => {
             return new Response(JSON.stringify({ error: 'Senha incorreta.' }), { status: 401 });
         }
 
-        const cookieValue = `${COOKIE_NAME}=${encodeURIComponent(session)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${EXPIRES_SEC}`;
+        const secure = import.meta.env.PROD ? '; Secure' : '';
+        const cookieValue = `${COOKIE_NAME}=${encodeURIComponent(session)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${EXPIRES_SEC}${secure}`;
 
         return new Response(JSON.stringify({ ok: true }), {
             status: 200,

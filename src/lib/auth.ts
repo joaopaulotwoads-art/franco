@@ -15,9 +15,13 @@ async function hmac(secret: string, data: string): Promise<string> {
     return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+function adminSecret(): string {
+    return String(process.env.ADMIN_SECRET ?? import.meta.env.ADMIN_SECRET ?? '').trim();
+}
+
 /** Cria a string de cookie assinada. Retorna null se ADMIN_SECRET não definido. */
 export async function createSession(password: string): Promise<string | null> {
-    const secret = import.meta.env.ADMIN_SECRET;
+    const secret = adminSecret();
     if (!secret) return null;
     if (password !== secret) return null;
 
@@ -30,7 +34,7 @@ export async function createSession(password: string): Promise<string | null> {
 /** Valida cookie. Retorna true se válido. */
 export async function validateSession(cookieValue: string | undefined): Promise<boolean> {
     if (!cookieValue) return false;
-    const secret = import.meta.env.ADMIN_SECRET;
+    const secret = adminSecret();
     if (!secret) return false;
 
     const parts = cookieValue.split('.');

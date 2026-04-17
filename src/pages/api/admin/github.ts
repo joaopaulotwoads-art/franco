@@ -17,6 +17,19 @@ function encodeGithubContentPath(path: string): string {
         .join('/');
 }
 
+/**
+ * Na Vercel, segredos costumam existir só em process.env em runtime; import.meta.env pode vir
+ * vazio no bundle (substituição em build). Sem token o código caía em handleDev: em serverless
+ * o disco é só leitura, unlink falha, e o catch devolvia 200 — o utilizador acha que apagou mas não.
+ */
+function getGithubEnv(): { token: string; owner: string; repo: string } | null {
+    const token = String(process.env.GITHUB_TOKEN ?? import.meta.env.GITHUB_TOKEN ?? '').trim();
+    const owner = String(process.env.GITHUB_OWNER ?? import.meta.env.GITHUB_OWNER ?? '').trim();
+    const repo = String(process.env.GITHUB_REPO ?? import.meta.env.GITHUB_REPO ?? '').trim();
+    if (!token || !owner || !repo) return null;
+    return { token, owner, repo };
+}
+
 /** Modo dev: lê/escreve arquivos locais sem precisar do GitHub */
 async function handleDev(action: string, path: string, content?: string, isBase64?: boolean): Promise<Response> {
     const absPath = nodePath.join(PROJECT_ROOT, path);
@@ -60,7 +73,12 @@ async function handleDev(action: string, path: string, content?: string, isBase6
         }
 
         case 'delete': {
-            try { await fs.unlink(absPath); } catch { /* ignora se já não existe */ }
+            try {
+                await fs.unlink(absPath);
+            } catch (e: any) {
+                const msg = e?.code === 'ENOENT' ? 'Ficheiro já não existia.' : (e?.message || String(e));
+                return new Response(JSON.stringify({ error: `Apagar no disco local falhou: ${msg}` }), { status: 500 });
+            }
             return new Response(JSON.stringify({ success: true }), { status: 200 });
         }
 
@@ -74,15 +92,27 @@ export const POST: APIRoute = async ({ request }) => {
         const body = await request.json();
         const { action, path, content, message, sha, isBase64 } = body;
 
-        const GITHUB_TOKEN = import.meta.env.GITHUB_TOKEN;
-        const GITHUB_OWNER = import.meta.env.GITHUB_OWNER;
-        const GITHUB_REPO = import.meta.env.GITHUB_REPO;
+        const gh = getGithubEnv();
 
-        // Modo dev: sem credenciais GitHub → usa filesystem local
-        if (!GITHUB_TOKEN || !GITHUB_OWNER || !GITHUB_REPO) {
-            if (!action || !path) return new Response(JSON.stringify({ error: 'Faltam parâmetros (action, path)' }), { status: 400 });
+        // Fora do `astro dev`, nunca simular GitHub no disco: em serverless o FS é só leitura e o
+        // delete parecia funcionar (200) mas o ficheiro continuava no GitHub.
+        if (!gh) {
+            if (!action || !path) {
+                return new Response(JSON.stringify({ error: 'Faltam parâmetros (action, path)' }), { status: 400 });
+            }
+            if (!import.meta.env.DEV) {
+                return new Response(
+                    JSON.stringify({
+                        error:
+                            'GitHub não configurado no servidor. Defina GITHUB_TOKEN (PAT com Contents: Read e Write no repositório), GITHUB_OWNER e GITHUB_REPO nas variáveis de ambiente (ex.: Vercel → Settings → Environment Variables → Production) e faça redeploy. Sem isso o CMS não altera o repositório.',
+                    }),
+                    { status: 503, headers: { 'Content-Type': 'application/json' } },
+                );
+            }
             return handleDev(action, path, content, isBase64);
         }
+
+        const { token: GITHUB_TOKEN, owner: GITHUB_OWNER, repo: GITHUB_REPO } = gh;
 
         if (!action || !path) {
             return new Response(JSON.stringify({ error: 'Faltam parâmetros obrigatórios (action, path)' }), { status: 400 });
